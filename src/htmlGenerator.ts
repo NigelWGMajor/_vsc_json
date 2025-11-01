@@ -15,16 +15,16 @@ export function generateHtmlContent(jsonData: any, fileName: string): string {
             <h2 class="title">${escapeHtml(fileName)}</h2>
             <div class="toolbar">
                 <button class="toolbar-btn" onclick="toggleTheme()" title="Toggle Light/Dark Mode">
-                    <span id="themeIcon">☀️</span>
+                    <span id="themeIcon">${getLightDarkIcon()}</span>
                 </button>
                 <button class="toolbar-btn" onclick="exportToHtml()" title="Export to HTML File">
-                    💾
+                    ${getSaveHtmlIcon()}
                 </button>
-                <button class="toolbar-btn" onclick="viewInBrowser()" title="View in Browser">
-                    🌐
+                <button class="toolbar-btn" id="browserBtn" onclick="viewInBrowser()" title="View in Browser">
+                    ${getToBrowserIcon()}
                 </button>
                 <button class="toolbar-btn" onclick="toggleCase()" title="Toggle Case (Pascal/camel)">
-                    <span id="caseIcon">Aa</span>
+                    ${getToggleCaseIcon()}
                 </button>
             </div>
         </div>
@@ -202,6 +202,69 @@ function escapeHtml(text: string): string {
         .replace(/'/g, '&#039;');
 }
 
+function getLightDarkIcon(): string {
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="12" height="12" class="icon">
+  <path d="M 3 16 A 12.500632743066973 12.500632743066973 0 0 0 28 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 3 16 A 12.502070584163558 12.502070584163558 0 0 1 28 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 14 5 L 14 27" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 11 6 L 11 26" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 9 7 L 9 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 7 9 L 7 23" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 5 12 L 5 20" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`;
+}
+
+function getSaveHtmlIcon(): string {
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="12" height="12" class="icon">
+  <path d="M 15 2 L 15 22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 15 22 L 22 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 16 23 L 8 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 26 15 L 29 15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 29 15 L 29 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 29 28 L 3 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 3 28 L 3 15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 3 15 L 6 15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 9 15 L 15 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 23 15 L 21 17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 17 2 L 17 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 15 2 L 17 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 8 16 L 9 15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 16 23 L 24 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 23 15 L 24 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`;
+}
+
+function getToBrowserIcon(): string {
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="12" height="12" class="icon">
+  <path d="M 4 9 L 27 9" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 4 21 L 27 21" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 3 15 A 12.500088185001491 12.500088185001491 0 0 0 28 15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 3 15 A 12.502551020408163 12.502551020408163 0 0 1 28 15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 28 15 L 28 15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 15.25 3 Q 2.125 15 15.25 27" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 15 28 Q 28.625 15.0625 15.5 2.5625" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 15.5625 2.75 L 15 28" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 3 15 L 28 15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`;
+}
+
+function getToggleCaseIcon(): string {
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="12" height="12" class="icon">
+  <path d="M 18 12 Q 25.125 8.4375 24.75 15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 25.6875 26 Q 24.125 21.3125 24.6875 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 23.75 17.6875 Q 17.4375 13.5 17.75 20.6875" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 24.8125 23.125 Q 18.1875 27.375 17.8125 21.125" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 23 13 L 24 13" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 16 26 L 10 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 10 5 L 5 26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 7 20 L 14 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 2 30 L 30 30" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 30 30 L 30 2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 30 2 L 2 2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 2 2 L 2 30" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`;
+}
+
 function getEmbeddedCss(): string {
     return `
 :root {
@@ -295,7 +358,7 @@ body {
 
 .toolbar {
     display: flex;
-    gap: 8px;
+    gap: 6px;
     align-items: center;
 }
 
@@ -303,7 +366,7 @@ body {
     background: var(--button-bg);
     border: none;
     color: white;
-    padding: 8px 12px;
+    padding: 6px;
     border-radius: 4px;
     cursor: pointer;
     font-size: 16px;
@@ -311,7 +374,8 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    min-width: 36px;
+    min-width: 24px;
+    min-height: 24px;
 }
 
 .toolbar-btn:hover {
@@ -320,6 +384,16 @@ body {
 
 .toolbar-btn:active {
     transform: scale(0.95);
+}
+
+.toolbar-btn svg.icon {
+    display: block;
+    width: 12px;
+    height: 12px;
+}
+
+.toolbar-btn #themeIcon svg.icon {
+    display: block;
 }
 
 .content {
@@ -502,19 +576,24 @@ function getEmbeddedJavaScript(): string {
     return `
 // Global state
 let caseMode = 'original'; // 'original', 'pascal', 'camel'
+let vscodeApi = null;
+
+// Initialize VSCode API (can only be called once)
+(function initVSCodeApi() {
+    if (typeof acquireVsCodeApi !== 'undefined') {
+        vscodeApi = acquireVsCodeApi();
+    }
+})();
 
 // Theme management
 function toggleTheme() {
     const body = document.body;
-    const icon = document.getElementById('themeIcon');
 
     if (body.classList.contains('light-mode')) {
         body.classList.remove('light-mode');
-        icon.textContent = '☀️';
         localStorage.setItem('theme', 'dark');
     } else {
         body.classList.add('light-mode');
-        icon.textContent = '🌙';
         localStorage.setItem('theme', 'light');
     }
 }
@@ -522,11 +601,19 @@ function toggleTheme() {
 // Initialize theme from localStorage
 (function initTheme() {
     const savedTheme = localStorage.getItem('theme');
-    const icon = document.getElementById('themeIcon');
 
     if (savedTheme === 'light') {
         document.body.classList.add('light-mode');
-        icon.textContent = '🌙';
+    }
+})();
+
+// Hide browser button if not in VSCode
+(function hideBrowserBtnIfNotInVSCode() {
+    if (!vscodeApi) {
+        const browserBtn = document.getElementById('browserBtn');
+        if (browserBtn) {
+            browserBtn.style.display = 'none';
+        }
     }
 })();
 
@@ -534,9 +621,8 @@ function toggleTheme() {
 function exportToHtml() {
     try {
         // Check if we're in VSCode webview
-        if (typeof acquireVsCodeApi !== 'undefined') {
-            const vscode = acquireVsCodeApi();
-            vscode.postMessage({ command: 'export' });
+        if (vscodeApi) {
+            vscodeApi.postMessage({ command: 'export' });
         } else {
             // Standalone HTML - save the current page
             const html = document.documentElement.outerHTML;
@@ -558,9 +644,8 @@ function exportToHtml() {
 function viewInBrowser() {
     try {
         // Check if we're in VSCode webview
-        if (typeof acquireVsCodeApi !== 'undefined') {
-            const vscode = acquireVsCodeApi();
-            vscode.postMessage({ command: 'viewInBrowser' });
+        if (vscodeApi) {
+            vscodeApi.postMessage({ command: 'viewInBrowser' });
         } else {
             alert('Already viewing in browser!');
         }
@@ -572,7 +657,6 @@ function viewInBrowser() {
 
 // Toggle case between Pascal, camel, and original
 function toggleCase() {
-    const icon = document.getElementById('caseIcon');
     const nameElements = document.querySelectorAll('.name');
 
     // Store original values if not already stored
@@ -585,13 +669,10 @@ function toggleCase() {
     // Cycle through modes
     if (caseMode === 'original') {
         caseMode = 'pascal';
-        icon.textContent = 'Pa';
     } else if (caseMode === 'pascal') {
         caseMode = 'camel';
-        icon.textContent = 'ca';
     } else {
         caseMode = 'original';
-        icon.textContent = 'Aa';
     }
 
     // Apply the transformation

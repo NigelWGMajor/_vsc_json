@@ -21,19 +21,20 @@
             "filenamePattern": "*.json"
           }
         ],
-        "priority": "option"
+        "priority": "option",
+        "icon": "media/sidebar-icon.svg"
       }
     ],
     "commands": [
       {
         "command": "jsonViewer.openViewer",
-        "title": "Open JSON Viewer",
-        "icon": "$(json)"
+        "title": "J2Html",
+        "icon": "media/sidebar-icon.svg"
       },
       {
         "command": "jsonViewer.exportHtml",
         "title": "Export JSON as HTML",
-        "icon": "$(export)"
+        "icon": "media/save-html.svg"
       }
     ],
     "menus": {
