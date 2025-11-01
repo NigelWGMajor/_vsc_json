@@ -1,0 +1,21 @@
+{
+  "user": {
+    "name": "John Doe",
+    "email": "john@example.com"
+  },
+  "settings": {
+    "theme": "dark",
+    "notifications": true
+  },
+  "items": [
+    {
+      "id": 1
+    },
+    {
+      "id": 2
+    },
+    {
+      "id": 3
+    }
+  ]
+}

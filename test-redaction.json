@@ -1,0 +1,16 @@
+{
+  "user": {
+    "name": "John Doe",
+    "email": "john@example.com",
+    "password": "secret123"
+  },
+  "settings": {
+    "theme": "dark",
+    "notifications": true
+  },
+  "items": [
+    {"id": 1, "value": "first"},
+    {"id": 2, "value": "second"},
+    {"id": 3, "value": "third"}
+  ]
+}
