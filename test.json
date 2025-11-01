@@ -1,0 +1,15 @@
+{
+  "name": "Test JSON",
+  "version": "1.0.0",
+  "description": "A simple test JSON file for the extension",
+  "features": [
+    "Custom JSON viewer",
+    "Export to HTML",
+    "Syntax highlighting"
+  ],
+  "settings": {
+    "theme": "dark",
+    "autoSave": true,
+    "fontSize": 14
+  }
+}
