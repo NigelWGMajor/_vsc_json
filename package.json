@@ -26,6 +26,11 @@
     ],
     "commands": [
       {
+        "command": "jsonViewer.openViewer",
+        "title": "Open JSON Viewer",
+        "icon": "$(json)"
+      },
+      {
         "command": "jsonViewer.exportHtml",
         "title": "Export JSON as HTML",
         "icon": "$(export)"
@@ -34,12 +39,21 @@
     "menus": {
       "editor/title": [
         {
+          "command": "jsonViewer.openViewer",
+          "when": "resourceLangId == json",
+          "group": "navigation"
+        },
+        {
           "command": "jsonViewer.exportHtml",
           "when": "resourceLangId == json",
           "group": "navigation"
         }
       ],
       "commandPalette": [
+        {
+          "command": "jsonViewer.openViewer",
+          "when": "resourceLangId == json"
+        },
         {
           "command": "jsonViewer.exportHtml",
           "when": "resourceLangId == json"

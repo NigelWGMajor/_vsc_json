@@ -21,6 +21,24 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(registration);
     console.log('Custom editor provider registered for jsonViewer.editor');
 
+    // Register command to open JSON Viewer
+    const openViewerCommand = vscode.commands.registerCommand('jsonViewer.openViewer', async (uri?: vscode.Uri) => {
+        const targetUri = uri || vscode.window.activeTextEditor?.document.uri;
+
+        if (!targetUri) {
+            vscode.window.showErrorMessage('No JSON file selected');
+            return;
+        }
+
+        try {
+            await vscode.commands.executeCommand('vscode.openWith', targetUri, 'jsonViewer.editor');
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to open viewer: ${error}`);
+        }
+    });
+
+    context.subscriptions.push(openViewerCommand);
+
     // Register command to export as standalone HTML
     const exportCommand = vscode.commands.registerCommand('jsonViewer.exportHtml', async () => {
         const editor = vscode.window.activeTextEditor;

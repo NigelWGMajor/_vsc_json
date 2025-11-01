@@ -35,6 +35,18 @@ export class JsonViewerEditorProvider implements vscode.CustomReadonlyEditorProv
             webviewPanel.webview.html = this.generateErrorHtml(error as Error);
         }
 
+        // Handle messages from the webview
+        webviewPanel.webview.onDidReceiveMessage(async (message) => {
+            switch (message.command) {
+                case 'export':
+                    await this.handleExport(document.uri);
+                    break;
+                case 'viewInBrowser':
+                    await this.handleViewInBrowser(document.uri);
+                    break;
+            }
+        });
+
         // Watch for file changes
         const changeDocumentSubscription = vscode.workspace.onDidChangeTextDocument(e => {
             if (e.document.uri.toString() === document.uri.toString()) {
@@ -105,5 +117,53 @@ export class JsonViewerEditorProvider implements vscode.CustomReadonlyEditorProv
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#039;');
+    }
+
+    private async handleExport(uri: vscode.Uri): Promise<void> {
+        try {
+            const fileContent = await vscode.workspace.fs.readFile(uri);
+            const jsonText = Buffer.from(fileContent).toString('utf8');
+            const jsonData = JSON.parse(jsonText);
+            const fileName = uri.fsPath.split(/[\\/]/).pop() || 'JSON Data';
+
+            const htmlContent = this.generateStandaloneHtml(jsonData, fileName);
+
+            const saveUri = await vscode.window.showSaveDialog({
+                defaultUri: vscode.Uri.file(uri.fsPath.replace(/\.json$/i, '.html')),
+                filters: {
+                    'HTML': ['html']
+                }
+            });
+
+            if (saveUri) {
+                await vscode.workspace.fs.writeFile(saveUri, Buffer.from(htmlContent, 'utf8'));
+                vscode.window.showInformationMessage(`Exported to ${saveUri.fsPath}`);
+            }
+        } catch (error) {
+            vscode.window.showErrorMessage(`Export failed: ${error}`);
+        }
+    }
+
+    private async handleViewInBrowser(uri: vscode.Uri): Promise<void> {
+        try {
+            const fileContent = await vscode.workspace.fs.readFile(uri);
+            const jsonText = Buffer.from(fileContent).toString('utf8');
+            const jsonData = JSON.parse(jsonText);
+            const fileName = uri.fsPath.split(/[\\/]/).pop() || 'JSON Data';
+
+            const htmlContent = this.generateStandaloneHtml(jsonData, fileName);
+
+            // Create a temporary HTML file
+            const tempDir = this.context.globalStorageUri.fsPath;
+            await vscode.workspace.fs.createDirectory(vscode.Uri.file(tempDir));
+
+            const tempFile = vscode.Uri.file(`${tempDir}/json-viewer-temp.html`);
+            await vscode.workspace.fs.writeFile(tempFile, Buffer.from(htmlContent, 'utf8'));
+
+            // Open in external browser
+            await vscode.env.openExternal(tempFile);
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to open in browser: ${error}`);
+        }
     }
 }

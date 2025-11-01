@@ -13,9 +13,20 @@ export function generateHtmlContent(jsonData: any, fileName: string): string {
     <div class="container">
         <div class="header">
             <h2 class="title">${escapeHtml(fileName)}</h2>
-            <button id="themToggle" class="theme-toggle" onclick="toggleTheme()">
-                <span id="themeIcon">☀️</span>
-            </button>
+            <div class="toolbar">
+                <button class="toolbar-btn" onclick="toggleTheme()" title="Toggle Light/Dark Mode">
+                    <span id="themeIcon">☀️</span>
+                </button>
+                <button class="toolbar-btn" onclick="exportToHtml()" title="Export to HTML File">
+                    💾
+                </button>
+                <button class="toolbar-btn" onclick="viewInBrowser()" title="View in Browser">
+                    🌐
+                </button>
+                <button class="toolbar-btn" onclick="toggleCase()" title="Toggle Case (Pascal/camel)">
+                    <span id="caseIcon">Aa</span>
+                </button>
+            </div>
         </div>
         <div class="content">
             ${renderedContent}
@@ -76,16 +87,24 @@ function renderObject(name: string, obj: any, level: number, isRoot: boolean): s
     let html = '';
 
     if (!isRoot) {
+        html += `<div class="object-container">`;
         html += `<div class="object-header row level-${level}" data-level="${level}">`;
-        html += `<div class="indent" style="width: ${level * 20}px;">${renderIndentMarkers(level)}</div>`;
+        html += `<div class="indent">${renderIndentMarkers(level)}</div>`;
+        html += `<div class="header-content">`;
         html += `<div class="name">${escapeHtml(name)}</div>`;
         html += `<div class="value"><span class="object-indicator">{object}</span></div>`;
+        html += `</div>`;
         html += '</div>';
+        html += `<div class="object-children">`;
     }
 
     keys.forEach(key => {
         html += renderJson(obj[key], key, level + 1);
     });
+
+    if (!isRoot) {
+        html += `</div></div>`;
+    }
 
     return html;
 }
@@ -101,7 +120,8 @@ function renderArray(name: string, arr: any[], level: number, isRoot: boolean): 
 
     // Array header
     html += `<div class="array-header row level-${level}" data-level="${level}">`;
-    html += `<div class="indent" style="width: ${level * 20}px;">${renderIndentMarkers(level)}</div>`;
+    html += `<div class="indent">${renderIndentMarkers(level)}</div>`;
+    html += `<div class="header-content">`;
     html += `<div class="name clickable" onclick="resetArray('${arrayId}')" title="Click to reset to first element">${escapeHtml(name)}</div>`;
     html += `<div class="value">`;
     html += `<span class="array-counter">`;
@@ -109,6 +129,7 @@ function renderArray(name: string, arr: any[], level: number, isRoot: boolean): 
     html += `<span class="separator">/</span>`;
     html += `<span class="total">${arr.length}</span>`;
     html += `</span>`;
+    html += `</div>`;
     html += `</div>`;
     html += '</div>';
 
@@ -160,7 +181,7 @@ function renderIndentMarkers(level: number): string {
 
     let markers = '';
     for (let i = 0; i < level; i++) {
-        markers += '<span class="indent-marker">│</span>';
+        markers += '<span class="indent-marker"></span>';
     }
     return markers;
 }
@@ -186,11 +207,15 @@ function getEmbeddedCss(): string {
 :root {
     --bg-primary: #1e1e1e;
     --bg-secondary: #252525;
-    --bg-hover: #2a2a2a;
+    --bg-row-even: #181818;
+    --bg-row-odd: #282828;
+    --bg-hover: #303030;
+    --bg-header-structure: #000000;
     --text-primary: #d4d4d4;
     --text-secondary: #9d9d9d;
     --border-color: #3e3e3e;
-    --indent-marker: #505050;
+    --separator-line: #808080;
+    --indent-marker: #808080;
     --name-color: #9cdcfe;
     --value-string: #ce9178;
     --value-number: #b5cea8;
@@ -206,11 +231,15 @@ function getEmbeddedCss(): string {
 body.light-mode {
     --bg-primary: #ffffff;
     --bg-secondary: #f5f5f5;
-    --bg-hover: #e8e8e8;
+    --bg-row-even: #f5f5f5;
+    --bg-row-odd: #e8e8e8;
+    --bg-hover: #d8d8d8;
+    --bg-header-structure: #ffffff;
     --text-primary: #1e1e1e;
     --text-secondary: #6a6a6a;
     --border-color: #d4d4d4;
-    --indent-marker: #c0c0c0;
+    --separator-line: #808080;
+    --indent-marker: #808080;
     --name-color: #0070c1;
     --value-string: #a31515;
     --value-number: #098658;
@@ -233,7 +262,7 @@ body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background: var(--bg-primary);
     color: var(--text-primary);
-    line-height: 1.6;
+    line-height: 1.4;
     padding: 0;
     margin: 0;
 }
@@ -264,19 +293,33 @@ body {
     margin: 0;
 }
 
-.theme-toggle {
+.toolbar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.toolbar-btn {
     background: var(--button-bg);
     border: none;
     color: white;
-    padding: 6px 12px;
+    padding: 8px 12px;
     border-radius: 4px;
     cursor: pointer;
     font-size: 16px;
     transition: background 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
 }
 
-.theme-toggle:hover {
+.toolbar-btn:hover {
     background: var(--button-hover);
+}
+
+.toolbar-btn:active {
+    transform: scale(0.95);
 }
 
 .content {
@@ -288,14 +331,21 @@ body {
 .row {
     display: flex;
     align-items: flex-start;
-    padding: 4px 8px;
-    border-bottom: 1px solid var(--border-color);
+    padding: 2px 8px;
     transition: background 0.15s;
-    min-height: 28px;
+    min-height: 22px;
+}
+
+.row:nth-child(even) {
+    background: var(--bg-row-even);
+}
+
+.row:nth-child(odd) {
+    background: var(--bg-row-odd);
 }
 
 .row:hover {
-    background: var(--bg-hover);
+    background: var(--bg-hover) !important;
 }
 
 .row.clickable {
@@ -308,17 +358,15 @@ body {
 
 .indent {
     display: flex;
-    align-items: center;
+    align-items: stretch;
     flex-shrink: 0;
-    gap: 2px;
+    gap: 0;
 }
 
 .indent-marker {
-    color: var(--indent-marker);
-    font-family: monospace;
     width: 20px;
-    text-align: center;
-    font-size: 14px;
+    border-left: 1px dashed var(--indent-marker);
+    flex-shrink: 0;
 }
 
 .name {
@@ -375,17 +423,58 @@ body {
     color: var(--text-secondary);
 }
 
+.object-container {
+    margin: 2px 0;
+    padding: 0;
+    position: relative;
+}
+
+.object-children {
+    /* Children are indented with markers, no container borders needed */
+}
+
 .array-container {
-    margin: 0;
+    margin: 2px 0;
+    padding: 0;
+    position: relative;
 }
 
 .array-element {
     margin: 0;
+    position: relative;
+    /* Array elements are indented with markers, no borders needed */
 }
 
 .object-header,
 .array-header {
     font-weight: 600;
+    background: transparent !important;
+}
+
+.header-content {
+    flex: 1;
+    display: flex;
+    background: var(--bg-header-structure);
+    border: 1px solid var(--separator-line);
+    padding: 2px 8px;
+    margin-left: -8px;
+}
+
+.header-content .name {
+    min-width: 150px;
+    padding-right: 16px;
+}
+
+.header-content .value {
+    flex: 1;
+}
+
+/* Prevent double borders */
+.array-container + .array-container,
+.object-container + .array-container,
+.array-container + .object-container,
+.object-container + .object-container {
+    margin-top: -1px;
 }
 
 @media (max-width: 768px) {
@@ -407,6 +496,9 @@ body {
 
 function getEmbeddedJavaScript(): string {
     return `
+// Global state
+let caseMode = 'original'; // 'original', 'pascal', 'camel'
+
 // Theme management
 function toggleTheme() {
     const body = document.body;
@@ -433,6 +525,95 @@ function toggleTheme() {
         icon.textContent = '🌙';
     }
 })();
+
+// Export to HTML file
+function exportToHtml() {
+    try {
+        // Check if we're in VSCode webview
+        if (typeof acquireVsCodeApi !== 'undefined') {
+            const vscode = acquireVsCodeApi();
+            vscode.postMessage({ command: 'export' });
+        } else {
+            // Standalone HTML - save the current page
+            const html = document.documentElement.outerHTML;
+            const blob = new Blob([html], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'json-export.html';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+    } catch (error) {
+        console.error('Export failed:', error);
+        alert('Export failed: ' + error.message);
+    }
+}
+
+// View in browser
+function viewInBrowser() {
+    try {
+        // Check if we're in VSCode webview
+        if (typeof acquireVsCodeApi !== 'undefined') {
+            const vscode = acquireVsCodeApi();
+            vscode.postMessage({ command: 'viewInBrowser' });
+        } else {
+            alert('Already viewing in browser!');
+        }
+    } catch (error) {
+        console.error('View in browser failed:', error);
+        alert('View in browser failed: ' + error.message);
+    }
+}
+
+// Toggle case between Pascal, camel, and original
+function toggleCase() {
+    const icon = document.getElementById('caseIcon');
+    const nameElements = document.querySelectorAll('.name');
+
+    // Store original values if not already stored
+    nameElements.forEach(el => {
+        if (!el.dataset.original) {
+            el.dataset.original = el.textContent;
+        }
+    });
+
+    // Cycle through modes
+    if (caseMode === 'original') {
+        caseMode = 'pascal';
+        icon.textContent = 'Pa';
+    } else if (caseMode === 'pascal') {
+        caseMode = 'camel';
+        icon.textContent = 'ca';
+    } else {
+        caseMode = 'original';
+        icon.textContent = 'Aa';
+    }
+
+    // Apply the transformation
+    nameElements.forEach(el => {
+        const original = el.dataset.original;
+        if (caseMode === 'pascal') {
+            el.textContent = toPascalCase(original);
+        } else if (caseMode === 'camel') {
+            el.textContent = toCamelCase(original);
+        } else {
+            el.textContent = original;
+        }
+    });
+}
+
+function toPascalCase(str) {
+    return str
+        .replace(/[_-](.)/g, (_, c) => c.toUpperCase())
+        .replace(/^(.)/, (_, c) => c.toUpperCase())
+        .replace(/\\s+(.)/g, (_, c) => c.toUpperCase());
+}
+
+function toCamelCase(str) {
+    const pascal = toPascalCase(str);
+    return pascal.charAt(0).toLowerCase() + pascal.slice(1);
+}
 
 // Array navigation
 const arrayStates = new Map();
