@@ -39,10 +39,10 @@ export class JsonViewerEditorProvider implements vscode.CustomReadonlyEditorProv
         webviewPanel.webview.onDidReceiveMessage(async (message) => {
             switch (message.command) {
                 case 'export':
-                    await this.handleExport(document.uri);
+                    await this.handleExport(document.uri, message.theme);
                     break;
                 case 'viewInBrowser':
-                    await this.handleViewInBrowser(document.uri);
+                    await this.handleViewInBrowser(document.uri, message.theme);
                     break;
             }
         });
@@ -72,8 +72,8 @@ export class JsonViewerEditorProvider implements vscode.CustomReadonlyEditorProv
         }
     }
 
-    public generateStandaloneHtml(jsonData: any, fileName: string): string {
-        return generateHtmlContent(jsonData, fileName);
+    public generateStandaloneHtml(jsonData: any, fileName: string, theme?: string): string {
+        return generateHtmlContent(jsonData, fileName, theme);
     }
 
     private generateErrorHtml(error: Error): string {
@@ -119,14 +119,14 @@ export class JsonViewerEditorProvider implements vscode.CustomReadonlyEditorProv
             .replace(/'/g, '&#039;');
     }
 
-    private async handleExport(uri: vscode.Uri): Promise<void> {
+    private async handleExport(uri: vscode.Uri, theme?: string): Promise<void> {
         try {
             const fileContent = await vscode.workspace.fs.readFile(uri);
             const jsonText = Buffer.from(fileContent).toString('utf8');
             const jsonData = JSON.parse(jsonText);
             const fileName = uri.fsPath.split(/[\\/]/).pop() || 'JSON Data';
 
-            const htmlContent = this.generateStandaloneHtml(jsonData, fileName);
+            const htmlContent = this.generateStandaloneHtml(jsonData, fileName, theme);
 
             const saveUri = await vscode.window.showSaveDialog({
                 defaultUri: vscode.Uri.file(uri.fsPath.replace(/\.json$/i, '.html')),
@@ -144,20 +144,21 @@ export class JsonViewerEditorProvider implements vscode.CustomReadonlyEditorProv
         }
     }
 
-    private async handleViewInBrowser(uri: vscode.Uri): Promise<void> {
+    private async handleViewInBrowser(uri: vscode.Uri, theme?: string): Promise<void> {
         try {
             const fileContent = await vscode.workspace.fs.readFile(uri);
             const jsonText = Buffer.from(fileContent).toString('utf8');
             const jsonData = JSON.parse(jsonText);
             const fileName = uri.fsPath.split(/[\\/]/).pop() || 'JSON Data';
 
-            const htmlContent = this.generateStandaloneHtml(jsonData, fileName);
+            const htmlContent = this.generateStandaloneHtml(jsonData, fileName, theme);
 
-            // Create a temporary HTML file
+            // Create a temporary HTML file with timestamp to avoid caching
             const tempDir = this.context.globalStorageUri.fsPath;
             await vscode.workspace.fs.createDirectory(vscode.Uri.file(tempDir));
 
-            const tempFile = vscode.Uri.file(`${tempDir}/json-viewer-temp.html`);
+            const timestamp = Date.now();
+            const tempFile = vscode.Uri.file(`${tempDir}/json-viewer-${timestamp}.html`);
             await vscode.workspace.fs.writeFile(tempFile, Buffer.from(htmlContent, 'utf8'));
 
             // Open in external browser

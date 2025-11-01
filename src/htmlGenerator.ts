@@ -1,5 +1,6 @@
-export function generateHtmlContent(jsonData: any, fileName: string): string {
+export function generateHtmlContent(jsonData: any, fileName: string, theme?: string): string {
     const renderedContent = renderJson(jsonData, fileName);
+    const lightModeClass = theme === 'light' ? ' class="light-mode"' : '';
 
     return `<!DOCTYPE html>
 <html>
@@ -9,7 +10,7 @@ export function generateHtmlContent(jsonData: any, fileName: string): string {
     <title>${escapeHtml(fileName)}</title>
     <style>${getEmbeddedCss()}</style>
 </head>
-<body>
+<body${lightModeClass}>
     <div class="container">
         <div class="header">
             <h2 class="title">${escapeHtml(fileName)}</h2>
@@ -598,12 +599,26 @@ function toggleTheme() {
     }
 }
 
-// Initialize theme from localStorage
+// Initialize theme from localStorage (only if not already set in body)
 (function initTheme() {
-    const savedTheme = localStorage.getItem('theme');
+    // Check if theme was already set when page was generated (from export/browser)
+    const hasLightModeClass = document.body.classList.contains('light-mode');
 
-    if (savedTheme === 'light') {
-        document.body.classList.add('light-mode');
+    // For standalone files (browser/export), ignore localStorage and trust the body class
+    // This ensures each file opens with its intended theme
+    if (!vscodeApi) {
+        // We're in standalone mode - set localStorage based on body class only
+        if (hasLightModeClass) {
+            localStorage.setItem('theme', 'light');
+        } else {
+            localStorage.setItem('theme', 'dark');
+        }
+    } else {
+        // We're in VSCode, check localStorage for saved preference
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'light') {
+            document.body.classList.add('light-mode');
+        }
     }
 })();
 
@@ -622,10 +637,27 @@ function exportToHtml() {
     try {
         // Check if we're in VSCode webview
         if (vscodeApi) {
-            vscodeApi.postMessage({ command: 'export' });
+            // Get current theme state
+            const isLightMode = document.body.classList.contains('light-mode');
+            vscodeApi.postMessage({
+                command: 'export',
+                theme: isLightMode ? 'light' : 'dark'
+            });
         } else {
-            // Standalone HTML - save the current page
-            const html = document.documentElement.outerHTML;
+            // Standalone HTML - save the current page with proper theme
+            // Clone the document to modify it without affecting the current page
+            const docClone = document.documentElement.cloneNode(true);
+            const bodyClone = docClone.querySelector('body');
+
+            // Ensure the body has the correct theme class based on current state
+            const isLightMode = document.body.classList.contains('light-mode');
+            if (isLightMode) {
+                bodyClone.classList.add('light-mode');
+            } else {
+                bodyClone.classList.remove('light-mode');
+            }
+
+            const html = docClone.outerHTML;
             const blob = new Blob([html], { type: 'text/html' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -645,7 +677,14 @@ function viewInBrowser() {
     try {
         // Check if we're in VSCode webview
         if (vscodeApi) {
-            vscodeApi.postMessage({ command: 'viewInBrowser' });
+            // Get current theme state
+            const isLightMode = document.body.classList.contains('light-mode');
+            const theme = isLightMode ? 'light' : 'dark';
+            console.log('Sending to browser with theme:', theme);
+            vscodeApi.postMessage({
+                command: 'viewInBrowser',
+                theme: theme
+            });
         } else {
             alert('Already viewing in browser!');
         }
