@@ -3,7 +3,8 @@
     "allow": [
       "Bash(npm install:*)",
       "Bash(npm run compile:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(code --list-extensions)"
     ],
     "deny": [],
     "ask": []

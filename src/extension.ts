@@ -8,7 +8,7 @@ export function activate(context: vscode.ExtensionContext) {
     // Register the custom editor provider for JSON files
     const provider = new JsonViewerEditorProvider(context);
     const registration = vscode.window.registerCustomEditorProvider(
-        'jsonViewer.editor',
+        'j2html.editor',
         provider,
         {
             webviewOptions: {
@@ -19,7 +19,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(registration);
-    console.log('Custom editor provider registered for jsonViewer.editor');
+    console.log('Custom editor provider registered for j2html.editor');
 
     // Register command to open JSON Viewer
     const openViewerCommand = vscode.commands.registerCommand('jsonViewer.openViewer', async (uri?: vscode.Uri) => {
@@ -31,7 +31,7 @@ export function activate(context: vscode.ExtensionContext) {
         }
 
         try {
-            await vscode.commands.executeCommand('vscode.openWith', targetUri, 'jsonViewer.editor');
+            await vscode.commands.executeCommand('vscode.openWith', targetUri, 'j2html.editor');
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to open viewer: ${error}`);
         }

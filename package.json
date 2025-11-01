@@ -14,8 +14,8 @@
   "contributes": {
     "customEditors": [
       {
-        "viewType": "jsonViewer.editor",
-        "displayName": "JSON Viewer",
+        "viewType": "j2html.editor",
+        "displayName": "J2Html",
         "selector": [
           {
             "filenamePattern": "*.json"
