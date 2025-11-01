@@ -33,8 +33,8 @@ export function generateHtmlContent(jsonData: any, fileName: string, theme?: str
                 <button class="toolbar-btn" id="wideViewBtn" onclick="toggleWideView()" title="Toggle Wide View (Tabular Data)" style="display:none;">
                     ${getWideIcon()}
                 </button>
-                <button class="toolbar-btn" id="exportJsonBtn" onclick="exportRedactedJson()" title="Export Redacted JSON" style="display:none;">
-                    <span style="font-size: 10px; font-weight: bold;">JSON</span>
+                <button class="toolbar-btn" id="exportJsonBtn" onclick="exportRedactedJson()" title="Export JSON">
+                    ${getSaveJsonIcon()}
                 </button>
             </div>
         </div>
@@ -294,6 +294,28 @@ function getWideIcon(): string {
   <path d="M 6 7 L 6 11" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M 6 11 L 25 11" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M 25 11 L 25 7" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`;
+}
+
+function getSaveJsonIcon(): string {
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="12" height="12" class="icon">
+  <path d="M 2 15 L 4 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 4 13 L 4 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 4 6 L 6 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 2 15 L 4 17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 4 17 L 4 25" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 4 25 L 6 27" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 27 3 L 29 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 29 6 L 29 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 29 13 L 31 15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 31 15 L 29 17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 29 17 L 29 25" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 29 25 L 27 27" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 18 5 Q 16.5 5.0625 17 6" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 17 5 L 18 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 18 10 Q 20.8125 28.8125 11 22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 19 9 Q 19.5 31.8125 11 22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 18 10 L 19 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>`;
 }
 
@@ -645,23 +667,30 @@ body {
 .wide-view .content {
     overflow-x: auto;
     max-width: none;
+    padding: 0;
 }
 
 .wide-view .container {
     max-width: none;
     width: 100%;
+    padding: 10px 10px 0 10px;
+}
+
+.wide-view .header {
+    margin-bottom: 10px;
 }
 
 .wide-view table {
     width: 100%;
     border-collapse: collapse;
     table-layout: auto;
+    font-size: 13px;
 }
 
 .wide-view th,
 .wide-view td {
     border: 1px solid var(--border-color);
-    padding: 8px 12px;
+    padding: 0 6px;
     text-align: left;
     white-space: nowrap;
 }
@@ -673,6 +702,31 @@ body {
     position: sticky;
     top: 0;
     z-index: 10;
+    padding: 0 6px;
+}
+
+.wide-view thead th:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 11;
+    background: var(--bg-header-structure);
+}
+
+.wide-view tbody th {
+    position: sticky;
+    left: 0;
+    z-index: 9;
+    font-weight: normal;
+    background: var(--bg-secondary);
+    color: var(--name-color);
+}
+
+.wide-view tbody tr:nth-child(even) th {
+    background: var(--bg-row-even);
+}
+
+.wide-view tbody tr:nth-child(odd) th {
+    background: var(--bg-row-odd);
 }
 
 .wide-view tbody tr:nth-child(even) {
@@ -684,6 +738,10 @@ body {
 }
 
 .wide-view tbody tr:hover {
+    background: var(--bg-hover);
+}
+
+.wide-view tbody tr:hover th {
     background: var(--bg-hover);
 }
 
@@ -943,6 +1001,11 @@ function renderOriginalView() {
     // Restore original content
     content.innerHTML = content.dataset.originalContent;
     delete content.dataset.originalContent;
+
+    // Re-initialize context menu handlers for redaction
+    if (typeof initializeRedactionHandlers === 'function') {
+        initializeRedactionHandlers();
+    }
 }
 
 function escapeHtml(text) {
@@ -1173,14 +1236,7 @@ function redactSelectedRow() {
 }
 
 function updateExportJsonButton() {
-    const btn = document.getElementById('exportJsonBtn');
-    if (btn) {
-        if (redactedElements.size > 0) {
-            btn.style.display = 'flex';
-        } else {
-            btn.style.display = 'none';
-        }
-    }
+    // Button is always visible now, no need to toggle display
 
     // Update title to show redaction indicator
     const title = document.querySelector('.title');
@@ -1384,10 +1440,9 @@ function nextInParentArray(element) {
     }
 }
 
-// Prevent event bubbling for array headers
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM Content Loaded - initializing redaction handlers');
-    console.log('redactedElements Set exists:', typeof redactedElements !== 'undefined');
+// Initialize redaction handlers - can be called multiple times
+function initializeRedactionHandlers() {
+    console.log('Initializing redaction handlers');
 
     // Restore previous redaction state if available
     if (vscodeApi) {
@@ -1407,29 +1462,33 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // Add right-click handlers only if in VSCode (not in standalone browser)
+    if (!vscodeApi) {
+        console.log('Standalone mode - skipping context menu handlers');
+        return;
+    }
+
+    const elements = document.querySelectorAll('.row, .array-container, .object-container');
+    console.log('Adding context menu handlers to', elements.length, 'elements');
+    elements.forEach(element => {
+        element.addEventListener('contextmenu', function(e) {
+            showContextMenu(e, this);
+        });
+    });
+}
+
+// Prevent event bubbling for array headers
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM Content Loaded - initializing redaction handlers');
+    console.log('redactedElements Set exists:', typeof redactedElements !== 'undefined');
+
     document.querySelectorAll('.array-header').forEach(header => {
         header.addEventListener('click', function(e) {
             e.stopPropagation();
         });
     });
 
-    // Add right-click handlers only if in VSCode (not in standalone browser)
-    const addContextMenuHandlers = () => {
-        if (!vscodeApi) {
-            console.log('Standalone mode - skipping context menu handlers');
-            return;
-        }
-
-        const elements = document.querySelectorAll('.row, .array-container, .object-container');
-        console.log('Adding context menu handlers to', elements.length, 'elements');
-        elements.forEach(element => {
-            element.addEventListener('contextmenu', function(e) {
-                showContextMenu(e, this);
-            });
-        });
-    };
-
-    addContextMenuHandlers();
+    initializeRedactionHandlers();
 
     // Hide context menu when clicking elsewhere
     document.addEventListener('click', function(e) {
