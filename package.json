@@ -35,6 +35,10 @@
         "command": "jsonViewer.exportHtml",
         "title": "Export JSON as HTML",
         "icon": "media/save-html.svg"
+      },
+      {
+        "command": "jsonViewer.clipboardToViewer",
+        "title": "Clipboard to J2Html (JSON/TSV/CSV)"
       }
     ],
     "menus": {

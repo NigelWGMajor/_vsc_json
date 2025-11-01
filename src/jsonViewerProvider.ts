@@ -130,8 +130,20 @@ export class JsonViewerEditorProvider implements vscode.CustomReadonlyEditorProv
         if (parts.length === 0) return;
 
         if (parts.length === 1) {
-            // Direct property - just delete it
-            delete obj[parts[0]];
+            // Direct property - handle both arrays and objects
+            if (Array.isArray(obj)) {
+                // Delete from all array elements
+                console.log(`  Deleting "${parts[0]}" from ${obj.length} root array elements`);
+                obj.forEach(item => {
+                    if (item && typeof item === 'object') {
+                        delete item[parts[0]];
+                    }
+                });
+            } else {
+                // Delete from the object directly
+                console.log(`  Deleting "${parts[0]}" from root object`);
+                delete obj[parts[0]];
+            }
             return;
         }
 
@@ -145,28 +157,34 @@ export class JsonViewerEditorProvider implements vscode.CustomReadonlyEditorProv
         const part = parts[index];
         const isLastPart = index === parts.length - 1;
 
+        console.log(`  deleteRecursive: part="${part}", index=${index}, isLastPart=${isLastPart}, isArray=${Array.isArray(current)}`);
+
         if (isLastPart) {
             // Delete this property from current object
             if (Array.isArray(current)) {
                 // If current is an array, delete from all elements
+                console.log(`  Deleting "${part}" from ${current.length} array elements`);
                 current.forEach(item => {
                     if (item && typeof item === 'object') {
                         delete item[part];
                     }
                 });
             } else {
+                console.log(`  Deleting "${part}" from object`);
                 delete current[part];
             }
         } else {
             // Navigate deeper
             if (Array.isArray(current)) {
                 // Recurse into all array elements
+                console.log(`  Recursing into ${current.length} array elements looking for "${part}"`);
                 current.forEach(item => {
                     if (item && typeof item === 'object' && item[part] !== undefined) {
                         this.deleteRecursive(item, parts, index + 1);
                     }
                 });
             } else if (current[part] !== undefined) {
+                console.log(`  Recursing into property "${part}"`);
                 this.deleteRecursive(current[part], parts, index + 1);
             }
         }

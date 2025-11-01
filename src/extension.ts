@@ -76,6 +76,90 @@ export function activate(context: vscode.ExtensionContext) {
     });
 
     context.subscriptions.push(exportCommand);
+
+    // Register command to display clipboard data (JSON, TSV, or CSV)
+    const clipboardCommand = vscode.commands.registerCommand('jsonViewer.clipboardToViewer', async () => {
+        try {
+            const clipboardText = await vscode.env.clipboard.readText();
+
+            if (!clipboardText || clipboardText.trim() === '') {
+                vscode.window.showErrorMessage('Clipboard is empty');
+                return;
+            }
+
+            let jsonData: any;
+            const trimmed = clipboardText.trim();
+
+            // Check if it starts with { or [ (JSON)
+            if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+                try {
+                    jsonData = JSON.parse(trimmed);
+                } catch (error) {
+                    vscode.window.showErrorMessage('Clipboard contains invalid JSON');
+                    return;
+                }
+            } else {
+                // Try TSV first (tab-delimited), then CSV (comma-delimited)
+                if (clipboardText.includes('\t')) {
+                    jsonData = parseDelimitedToJson(clipboardText, '\t');
+                } else {
+                    jsonData = parseDelimitedToJson(clipboardText, ',');
+                }
+
+                if (!jsonData) {
+                    vscode.window.showErrorMessage('Clipboard does not contain valid JSON, TSV, or CSV data');
+                    return;
+                }
+            }
+
+            // Create a temporary JSON file to open in the viewer
+            const tempDir = context.globalStorageUri.fsPath;
+            await vscode.workspace.fs.createDirectory(vscode.Uri.file(tempDir));
+
+            const timestamp = Date.now();
+            const tempFile = vscode.Uri.file(`${tempDir}/clipboard-${timestamp}.json`);
+            const jsonContent = JSON.stringify(jsonData, null, 2);
+            await vscode.workspace.fs.writeFile(tempFile, Buffer.from(jsonContent, 'utf8'));
+
+            // Open in VSCode viewer
+            await vscode.commands.executeCommand('vscode.openWith', tempFile, 'j2html.editor');
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to process clipboard: ${error}`);
+        }
+    });
+
+    context.subscriptions.push(clipboardCommand);
+}
+
+function parseDelimitedToJson(text: string, delimiter: string): any[] | null {
+    const lines = text.split('\n').map(line => line.trim()).filter(line => line !== '');
+
+    if (lines.length < 2) {
+        return null; // Need at least header + 1 data row
+    }
+
+    // First line is headers
+    const headers = lines[0].split(delimiter);
+
+    // Remaining lines are data
+    const data: any[] = [];
+    for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(delimiter);
+        const row: any = {};
+
+        for (let j = 0; j < headers.length; j++) {
+            const header = headers[j].trim();
+            const value = values[j] ? values[j].trim() : '';
+
+            // Try to parse as number if possible
+            const numValue = parseFloat(value);
+            row[header] = !isNaN(numValue) && value !== '' ? numValue : value;
+        }
+
+        data.push(row);
+    }
+
+    return data;
 }
 
 export function deactivate() {}
