@@ -41,11 +41,11 @@ function renderJson(data: any, name: string = 'root', level: number = 0): string
     const isRoot = level === 0;
 
     if (data === null) {
-        return renderRow('null', 'null', level, isRoot);
+        return renderRow(name, '<span class="value-null">null</span>', level, isRoot);
     }
 
     if (data === undefined) {
-        return renderRow('undefined', 'undefined', level, isRoot);
+        return renderRow(name, '<span class="value-undefined">undefined</span>', level, isRoot);
     }
 
     const type = typeof data;
@@ -99,7 +99,7 @@ function renderObject(name: string, obj: any, level: number, isRoot: boolean): s
     }
 
     keys.forEach(key => {
-        html += renderJson(obj[key], key, level + 1);
+        html += renderJson(obj[key], key, isRoot ? 0 : level + 1);
     });
 
     if (!isRoot) {
@@ -168,7 +168,7 @@ function renderRow(name: string, value: string, level: number, isRoot: boolean):
     }
 
     let html = `<div class="row level-${level} clickable" data-level="${level}" onclick="nextInParentArray(this)">`;
-    html += `<div class="indent" style="width: ${level * 20}px;">${renderIndentMarkers(level)}</div>`;
+    html += `<div class="indent">${renderIndentMarkers(level)}</div>`;
     html += `<div class="name">${escapeHtml(name)}</div>`;
     html += `<div class="value">${value}</div>`;
     html += '</div>';
@@ -365,6 +365,7 @@ body {
 
 .indent-marker {
     width: 20px;
+    height: 1.4em;
     border-left: 1px dashed var(--indent-marker);
     flex-shrink: 0;
 }
@@ -383,6 +384,9 @@ body {
     font-family: 'Consolas', 'Courier New', monospace;
     flex: 1;
     word-break: break-word;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .value-string {
@@ -456,7 +460,7 @@ body {
     display: flex;
     background: var(--bg-header-structure);
     border: 1px solid var(--separator-line);
-    padding: 2px 8px;
+    padding: 1px 8px;
     margin-left: -8px;
 }
 
