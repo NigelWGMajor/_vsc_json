@@ -1,6 +1,9 @@
-export function generateHtmlContent(jsonData: any, fileName: string, theme?: string): string {
+export function generateHtmlContent(jsonData: any, fileName: string, theme?: string, wideView?: boolean): string {
     const renderedContent = renderJson(jsonData, fileName);
-    const lightModeClass = theme === 'light' ? ' class="light-mode"' : '';
+    const classes = [];
+    if (theme === 'light') classes.push('light-mode');
+    if (wideView) classes.push('wide-view', 'wide-view-active');
+    const bodyClass = classes.length > 0 ? ` class="${classes.join(' ')}"` : '';
 
     return `<!DOCTYPE html>
 <html>
@@ -10,7 +13,7 @@ export function generateHtmlContent(jsonData: any, fileName: string, theme?: str
     <title>${escapeHtml(fileName)}</title>
     <style>${getEmbeddedCss()}</style>
 </head>
-<body${lightModeClass}>
+<body${bodyClass} data-wide-view="${wideView ? 'true' : 'false'}">
     <div class="container">
         <div class="header">
             <h2 class="title">${escapeHtml(fileName)}</h2>
@@ -26,6 +29,9 @@ export function generateHtmlContent(jsonData: any, fileName: string, theme?: str
                 </button>
                 <button class="toolbar-btn" onclick="toggleCase()" title="Toggle Case (Pascal/camel)">
                     ${getToggleCaseIcon()}
+                </button>
+                <button class="toolbar-btn" id="wideViewBtn" onclick="toggleWideView()" title="Toggle Wide View (Tabular Data)" style="display:none;">
+                    ${getWideIcon()}
                 </button>
                 <button class="toolbar-btn" id="exportJsonBtn" onclick="exportRedactedJson()" title="Export Redacted JSON" style="display:none;">
                     <span style="font-size: 10px; font-weight: bold;">JSON</span>
@@ -273,6 +279,21 @@ function getToggleCaseIcon(): string {
   <path d="M 30 30 L 30 2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M 30 2 L 2 2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M 2 2 L 2 30" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`;
+}
+
+function getWideIcon(): string {
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="12" height="12" class="icon">
+  <path d="M 6 7 L 1 17" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 1 17 L 6 27" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 25 7 L 30 17" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 30 17 L 25 27" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 25 27 L 25 22" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 25 22 L 6 22" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 6 22 L 6 27" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 6 7 L 6 11" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 6 11 L 25 11" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 25 11 L 25 7" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>`;
 }
 
@@ -619,6 +640,57 @@ body {
 .object-container.redacted {
     display: none !important;
 }
+
+/* Wide view for tabular data */
+.wide-view .content {
+    overflow-x: auto;
+    max-width: none;
+}
+
+.wide-view .container {
+    max-width: none;
+    width: 100%;
+}
+
+.wide-view table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: auto;
+}
+
+.wide-view th,
+.wide-view td {
+    border: 1px solid var(--border-color);
+    padding: 8px 12px;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.wide-view th {
+    background: var(--bg-header-structure);
+    color: var(--name-color);
+    font-weight: bold;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.wide-view tbody tr:nth-child(even) {
+    background: var(--bg-row-even);
+}
+
+.wide-view tbody tr:nth-child(odd) {
+    background: var(--bg-row-odd);
+}
+
+.wide-view tbody tr:hover {
+    background: var(--bg-hover);
+}
+
+.wide-view-active #wideViewBtn {
+    background: var(--bg-hover);
+    border: 1px solid var(--name-color);
+}
 `;
 }
 
@@ -683,6 +755,202 @@ function toggleTheme() {
     }
 })();
 
+// Detect tabular data and show wide view button (only in VSCode)
+(function detectTabularData() {
+    // Only show wide view in VSCode, not in browser
+    if (!vscodeApi) return;
+
+    const content = document.querySelector('.content');
+    if (!content) return;
+
+    console.log('Detecting tabular data...');
+
+    // Look for array containers - could be at root level or nested
+    const arrayContainers = content.querySelectorAll('.array-container');
+    console.log('Found array containers:', arrayContainers.length);
+
+    if (arrayContainers.length > 0) {
+        // Check the first (typically root) array container
+        const firstArray = arrayContainers[0];
+
+        // Look for array-element divs
+        const arrayElements = firstArray.querySelectorAll('.array-element');
+        console.log('Found array elements:', arrayElements.length);
+
+        if (arrayElements.length > 1) {
+            // Check if array elements contain rows (tabular data where objects are rendered as rows)
+            // Get keys from first array element
+            const firstElementRows = arrayElements[0].querySelectorAll(':scope > .row');
+            console.log('First element has rows:', firstElementRows.length);
+
+            if (firstElementRows.length > 0) {
+                const firstObjKeys = Array.from(firstElementRows)
+                    .map(row => {
+                        const nameEl = row.querySelector('.name');
+                        return nameEl ? nameEl.textContent.trim() : '';
+                    })
+                    .filter(k => k !== '');
+
+                console.log('First object keys:', firstObjKeys);
+
+                if (firstObjKeys.length > 0) {
+                    let isTabular = true;
+
+                    // Check next few array elements for consistent keys
+                    for (let i = 1; i < Math.min(arrayElements.length, 10); i++) {
+                        const elementRows = arrayElements[i].querySelectorAll(':scope > .row');
+                        const objKeys = Array.from(elementRows)
+                            .map(row => {
+                                const nameEl = row.querySelector('.name');
+                                return nameEl ? nameEl.textContent.trim() : '';
+                            })
+                            .filter(k => k !== '');
+
+                        if (objKeys.length !== firstObjKeys.length ||
+                            !objKeys.every((key, idx) => key === firstObjKeys[idx])) {
+                            isTabular = false;
+                            console.log('Not tabular - keys mismatch at index', i);
+                            break;
+                        }
+                    }
+
+                    // Show wide view button if data is tabular
+                    if (isTabular) {
+                        console.log('Data is tabular! Showing wide view button');
+                        const wideViewBtn = document.getElementById('wideViewBtn');
+                        if (wideViewBtn) {
+                            wideViewBtn.style.display = 'block';
+                        }
+                    } else {
+                        console.log('Data is not tabular');
+                    }
+                }
+            }
+        }
+    }
+})();
+
+// Auto-render wide view if body has wide-view class on load
+(function autoRenderWideView() {
+    const body = document.body;
+    if (body.classList.contains('wide-view') && body.getAttribute('data-wide-view') === 'true') {
+        console.log('Auto-rendering wide view from body class');
+        // Wait for DOM to be ready
+        setTimeout(() => {
+            renderTableView();
+        }, 100);
+    }
+})();
+
+// Toggle wide view for tabular data
+function toggleWideView() {
+    const body = document.body;
+    const content = document.querySelector('.content');
+
+    if (!content) return;
+
+    if (body.classList.contains('wide-view')) {
+        // Exit wide view - restore original rendering
+        body.classList.remove('wide-view');
+        body.classList.remove('wide-view-active');
+        renderOriginalView();
+    } else {
+        // Enter wide view - render as table
+        body.classList.add('wide-view');
+        body.classList.add('wide-view-active');
+        renderTableView();
+    }
+}
+
+function renderTableView() {
+    const content = document.querySelector('.content');
+    if (!content) return;
+
+    // Find the first array container
+    const arrayContainer = content.querySelector('.array-container');
+    if (!arrayContainer) return;
+
+    // Look for array-element divs
+    const arrayElements = arrayContainer.querySelectorAll('.array-element');
+    if (arrayElements.length === 0) return;
+
+    // Extract field names from the first array element's rows
+    const firstElementRows = arrayElements[0].querySelectorAll(':scope > .row');
+    const fieldNames = Array.from(firstElementRows)
+        .map(row => {
+            const nameEl = row.querySelector('.name');
+            return nameEl ? nameEl.textContent.trim() : '';
+        })
+        .filter(h => h !== '');
+
+    if (fieldNames.length === 0) return;
+
+    // Build transposed table HTML
+    // Header row: Field Name, Item 1, Item 2, Item 3, ...
+    let tableHtml = '<table><thead><tr>';
+    tableHtml += '<th>Field</th>'; // First column is field names
+
+    // Add column header for each item
+    for (let i = 0; i < arrayElements.length; i++) {
+        // Check if this item has redacted rows
+        const hasRedacted = arrayElements[i].querySelector('.row.redacted');
+        if (!hasRedacted) {
+            tableHtml += '<th>Item ' + (i + 1) + '</th>';
+        }
+    }
+    tableHtml += '</tr></thead><tbody>';
+
+    // Each row represents a field
+    fieldNames.forEach((fieldName, fieldIndex) => {
+        tableHtml += '<tr>';
+        tableHtml += '<th>' + escapeHtml(fieldName) + '</th>'; // Field name in first column
+
+        // Add value for each item (column)
+        arrayElements.forEach(arrayEl => {
+            // Skip if any rows in this element are redacted
+            const hasRedacted = arrayEl.querySelector('.row.redacted');
+            if (hasRedacted) return;
+
+            const rows = arrayEl.querySelectorAll(':scope > .row');
+            if (rows[fieldIndex]) {
+                const valueEl = rows[fieldIndex].querySelector('.value');
+                if (valueEl) {
+                    tableHtml += '<td>' + valueEl.innerHTML + '</td>';
+                } else {
+                    tableHtml += '<td></td>';
+                }
+            } else {
+                tableHtml += '<td></td>';
+            }
+        });
+
+        tableHtml += '</tr>';
+    });
+
+    tableHtml += '</tbody></table>';
+
+    // Store original content and replace with table
+    if (!content.dataset.originalContent) {
+        content.dataset.originalContent = content.innerHTML;
+    }
+    content.innerHTML = tableHtml;
+}
+
+function renderOriginalView() {
+    const content = document.querySelector('.content');
+    if (!content || !content.dataset.originalContent) return;
+
+    // Restore original content
+    content.innerHTML = content.dataset.originalContent;
+    delete content.dataset.originalContent;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 // Export to HTML file
 function exportToHtml() {
     try {
@@ -744,11 +1012,15 @@ function viewInBrowser() {
             // Get list of redacted element paths
             const redactedPaths = getRedactedPaths();
 
-            console.log('Sending to browser with theme:', theme, 'redacted paths:', redactedPaths);
+            // Check if we're in wide view mode
+            const isWideView = document.body.classList.contains('wide-view');
+
+            console.log('Sending to browser with theme:', theme, 'wide view:', isWideView, 'redacted paths:', redactedPaths);
             vscodeApi.postMessage({
                 command: 'viewInBrowser',
                 theme: theme,
-                redactedPaths: redactedPaths
+                redactedPaths: redactedPaths,
+                wideView: isWideView
             });
         } else {
             alert('Already viewing in browser!');

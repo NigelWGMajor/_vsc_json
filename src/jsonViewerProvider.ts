@@ -51,7 +51,7 @@ export class JsonViewerEditorProvider implements vscode.CustomReadonlyEditorProv
                     await this.handleExport(document.uri, message.theme, message.redactedPaths);
                     break;
                 case 'viewInBrowser':
-                    await this.handleViewInBrowser(document.uri, message.theme, message.redactedPaths);
+                    await this.handleViewInBrowser(document.uri, message.theme, message.redactedPaths, message.wideView);
                     break;
                 case 'exportJson':
                     await this.handleExportJson(document.uri, message.redactedPaths);
@@ -90,12 +90,12 @@ export class JsonViewerEditorProvider implements vscode.CustomReadonlyEditorProv
         }
     }
 
-    public generateStandaloneHtml(jsonData: any, fileName: string, theme?: string, redactedPaths?: string[]): string {
+    public generateStandaloneHtml(jsonData: any, fileName: string, theme?: string, redactedPaths?: string[], wideView?: boolean): string {
         // Filter out redacted paths from JSON data
         if (redactedPaths && redactedPaths.length > 0) {
             jsonData = this.redactJson(jsonData, redactedPaths);
         }
-        return generateHtmlContent(jsonData, fileName, theme);
+        return generateHtmlContent(jsonData, fileName, theme, wideView);
     }
 
     private redactJson(data: any, paths: string[]): any {
@@ -262,7 +262,7 @@ export class JsonViewerEditorProvider implements vscode.CustomReadonlyEditorProv
         }
     }
 
-    private async handleViewInBrowser(uri: vscode.Uri, theme?: string, redactedPaths?: string[]): Promise<void> {
+    private async handleViewInBrowser(uri: vscode.Uri, theme?: string, redactedPaths?: string[], wideView?: boolean): Promise<void> {
         try {
             // Use the current working JSON data (already redacted)
             const jsonData = this.workingJsonCache.get(uri.toString());
@@ -273,7 +273,7 @@ export class JsonViewerEditorProvider implements vscode.CustomReadonlyEditorProv
                 return;
             }
 
-            const htmlContent = this.generateStandaloneHtml(jsonData, fileName, theme);
+            const htmlContent = this.generateStandaloneHtml(jsonData, fileName, theme, redactedPaths, wideView);
 
             // Create a temporary HTML file with timestamp to avoid caching
             const tempDir = this.context.globalStorageUri.fsPath;
