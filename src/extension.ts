@@ -11,8 +11,11 @@ async function getDefaultSaveFolder(currentFileUri?: vscode.Uri): Promise<vscode
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
 
     if (!workspaceFolder) {
-        // No workspace open, use current file's directory if available
-        return currentFileUri ? vscode.Uri.file(path.dirname(currentFileUri.fsPath)) : undefined;
+        // No workspace open, use current file's directory if available (but not for untitled)
+        if (currentFileUri && currentFileUri.scheme !== 'untitled') {
+            return vscode.Uri.file(path.dirname(currentFileUri.fsPath));
+        }
+        return undefined;
     }
 
     // Check if .data folder exists in workspace root
@@ -90,11 +93,15 @@ export function activate(context: vscode.ExtensionContext) {
 
             // Get default save folder and create default file path
             const defaultFolder = await getDefaultSaveFolder(document.uri);
-            const fileName = path.basename(document.fileName);
+            const fileName = document.uri.scheme === 'untitled'
+                ? 'untitled.json'
+                : path.basename(document.fileName);
             const defaultFileName = fileName.replace(/\.json$/i, '.html');
             const defaultUri = defaultFolder
                 ? vscode.Uri.file(path.join(defaultFolder.fsPath, defaultFileName))
-                : vscode.Uri.file(document.fileName.replace('.json', '.html'));
+                : (document.uri.scheme === 'untitled'
+                    ? vscode.Uri.file(path.join(vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '', 'untitled.html'))
+                    : vscode.Uri.file(document.fileName.replace('.json', '.html')));
 
             const saveUri = await vscode.window.showSaveDialog({
                 defaultUri: defaultUri,
@@ -115,7 +122,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(exportCommand);
 
     // Register command to display clipboard data (JSON, TSV, or CSV)
-    const clipboardCommand = vscode.commands.registerCommand('to-json-visual-from-clip', async () => {
+    const clipboardCommand = vscode.commands.registerCommand('to-json-visual-from-clipboard', async () => {
         try {
             const clipboardText = await vscode.env.clipboard.readText();
 
@@ -166,6 +173,102 @@ export function activate(context: vscode.ExtensionContext) {
     });
 
     context.subscriptions.push(clipboardCommand);
+
+    // Register command to dump C# debug variable to JSON
+    const toDebugDump = vscode.commands.registerCommand('to-debug-dump-json', async () => {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+            vscode.window.showErrorMessage('No active editor found');
+            return;
+        }
+
+        // Check if the active document is C#
+        if (editor.document.languageId !== 'csharp') {
+            vscode.window.showErrorMessage('This command only works with C# files');
+            return;
+        }
+
+        // Check if there's an active debug session
+        const debugSession = vscode.debug.activeDebugSession;
+        if (!debugSession) {
+            vscode.window.showErrorMessage('No active debug session. Please start debugging first.');
+            return;
+        }
+
+        const selection = editor.selection;
+        const selectedText = editor.document.getText(selection).trim();
+
+        if (!selectedText) {
+            vscode.window.showErrorMessage('Please select a variable or expression to dump');
+            return;
+        }
+
+        // Build the serialization expression
+        const expression = `System.Text.Json.JsonSerializer.Serialize(${selectedText})`;
+
+        try {
+            // Create temp document with expression
+            const tempDoc = await vscode.workspace.openTextDocument({
+                content: expression,
+                language: 'csharp'
+            });
+
+            const tempEditor = await vscode.window.showTextDocument(tempDoc, {
+                preview: false,
+                preserveFocus: false
+            });
+
+            // Select all text
+            const fullRange = new vscode.Range(
+                tempDoc.lineAt(0).range.start,
+                tempDoc.lineAt(tempDoc.lineCount - 1).range.end
+            );
+            tempEditor.selection = new vscode.Selection(fullRange.start, fullRange.end);
+
+            // Send to REPL
+            await vscode.commands.executeCommand('editor.debug.action.selectionToRepl');
+
+            // Wait for output to appear in clipboard
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            // Close temp document
+            await vscode.commands.executeCommand('workbench.action.revertAndCloseActiveEditor');
+
+            // Create JSON document
+            const jsonDoc = await vscode.workspace.openTextDocument({
+                content: '',
+                language: 'json'
+            });
+
+            const jsonEditor = await vscode.window.showTextDocument(jsonDoc, {
+                viewColumn: vscode.ViewColumn.Beside,
+                preserveFocus: false
+            });
+
+            // Wait a moment for focus
+            await new Promise(resolve => setTimeout(resolve, 200));
+
+            // Get clipboard content
+            const clipboardText = await vscode.env.clipboard.readText();
+
+            // Insert clipboard content
+            const success = await jsonEditor.edit(editBuilder => {
+                editBuilder.insert(new vscode.Position(0, 0), clipboardText);
+            });
+
+            if (success) {
+                // Format the document
+                await vscode.commands.executeCommand('editor.action.formatDocument');
+                vscode.window.showInformationMessage('JSON dumped and formatted!');
+            }
+
+        } catch (error: any) {
+            const errorMsg = error?.message || error?.toString() || 'Unknown error';
+            vscode.window.showErrorMessage(`Failed: ${errorMsg}`);
+        }
+    });
+
+    context.subscriptions.push(toDebugDump);
 }
 
 function parseDelimitedToJson(text: string, delimiter: string): any[] | null {

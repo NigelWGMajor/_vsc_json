@@ -44,8 +44,12 @@
         "icon": "media/save-html.svg"
       },
       {
-        "command": "to-json-visual-from-clip",
+        "command": "to-json-visual-from-clipboard",
         "title": "Clipboard to J2Html (JSON/TSV/CSV)"
+      },
+      {
+        "command": "to-debug-dump-json",
+        "title": "to-debug-dump-json"
       }
     ],
     "menus": {

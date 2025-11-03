@@ -11,8 +11,11 @@ async function getDefaultSaveFolder(currentFileUri?: vscode.Uri): Promise<vscode
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
 
     if (!workspaceFolder) {
-        // No workspace open, use current file's directory if available
-        return currentFileUri ? vscode.Uri.file(path.dirname(currentFileUri.fsPath)) : undefined;
+        // No workspace open, use current file's directory if available (but not for untitled)
+        if (currentFileUri && currentFileUri.scheme !== 'untitled') {
+            return vscode.Uri.file(path.dirname(currentFileUri.fsPath));
+        }
+        return undefined;
     }
 
     // Check if .data folder exists in workspace root
@@ -53,13 +56,22 @@ export class JsonViewerEditorProvider implements vscode.CustomReadonlyEditorProv
             enableScripts: true
         };
 
-        // Read the JSON file
-        const fileContent = await vscode.workspace.fs.readFile(document.uri);
-        const jsonText = Buffer.from(fileContent).toString('utf8');
+        // Read the JSON file - handle both regular files and untitled documents
+        let jsonText: string;
+        if (document.uri.scheme === 'untitled') {
+            // For untitled documents, get content from the text editor
+            const textDocument = await vscode.workspace.openTextDocument(document.uri);
+            jsonText = textDocument.getText();
+        } else {
+            const fileContent = await vscode.workspace.fs.readFile(document.uri);
+            jsonText = Buffer.from(fileContent).toString('utf8');
+        }
 
         try {
             const jsonData = JSON.parse(jsonText);
-            const fileName = document.uri.fsPath.split(/[\\/]/).pop() || 'JSON Data';
+            const fileName = document.uri.scheme === 'untitled'
+                ? 'Untitled JSON'
+                : (document.uri.fsPath.split(/[\\/]/).pop() || 'JSON Data');
 
             // Initialize working JSON cache with a copy of the data
             this.workingJsonCache.set(document.uri.toString(), JSON.parse(JSON.stringify(jsonData)));
@@ -266,7 +278,9 @@ export class JsonViewerEditorProvider implements vscode.CustomReadonlyEditorProv
         try {
             // Use the current working JSON data (already redacted)
             const jsonData = this.workingJsonCache.get(uri.toString());
-            const fileName = uri.fsPath.split(/[\\/]/).pop() || 'JSON Data';
+            const fileName = uri.scheme === 'untitled'
+                ? 'untitled.json'
+                : (uri.fsPath.split(/[\\/]/).pop() || 'data.json');
 
             if (!jsonData) {
                 vscode.window.showErrorMessage('No JSON data available to export');
@@ -280,7 +294,9 @@ export class JsonViewerEditorProvider implements vscode.CustomReadonlyEditorProv
             const defaultFileName = fileName.replace(/\.json$/i, '.html');
             const defaultUri = defaultFolder
                 ? vscode.Uri.file(path.join(defaultFolder.fsPath, defaultFileName))
-                : vscode.Uri.file(uri.fsPath.replace(/\.json$/i, '.html'));
+                : (uri.scheme === 'untitled'
+                    ? vscode.Uri.file(path.join(vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '', 'untitled.html'))
+                    : vscode.Uri.file(uri.fsPath.replace(/\.json$/i, '.html')));
 
             const saveUri = await vscode.window.showSaveDialog({
                 defaultUri: defaultUri,
@@ -370,11 +386,15 @@ export class JsonViewerEditorProvider implements vscode.CustomReadonlyEditorProv
 
             // Get default save folder and create default file path
             const defaultFolder = await getDefaultSaveFolder(uri);
-            const fileName = uri.fsPath.split(/[\\/]/).pop() || 'data.json';
+            const fileName = uri.scheme === 'untitled'
+                ? 'untitled.json'
+                : (uri.fsPath.split(/[\\/]/).pop() || 'data.json');
             const defaultFileName = fileName.replace(/\.json$/i, '-redacted.json');
             const defaultUri = defaultFolder
                 ? vscode.Uri.file(path.join(defaultFolder.fsPath, defaultFileName))
-                : vscode.Uri.file(uri.fsPath.replace(/\.json$/i, '-redacted.json'));
+                : (uri.scheme === 'untitled'
+                    ? vscode.Uri.file(path.join(vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '', 'untitled-redacted.json'))
+                    : vscode.Uri.file(uri.fsPath.replace(/\.json$/i, '-redacted.json')));
 
             const saveUri = await vscode.window.showSaveDialog({
                 defaultUri: defaultUri,
