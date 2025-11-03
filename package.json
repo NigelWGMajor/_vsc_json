@@ -1,8 +1,15 @@
 {
   "name": "vsc-json-extension",
-  "displayName": "JSON Extension",
-  "description": "A VSCode extension for JSON processing",
+  "displayName": "JSON Visualizer",
+  "description": "A VSCode extension for JSON visualization and processing",
   "version": "0.0.1",
+  "license": "MIT",
+  "publisher": "nigelwgmajor",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nigelwgmajor/vsc-json-extension"
+  },
+  "icon": "media/sidebar-icon.png",
   "engines": {
     "vscode": "^1.80.0"
   },
@@ -37,7 +44,7 @@
         "icon": "media/save-html.svg"
       },
       {
-        "command": "jsonViewer.clipboardToViewer",
+        "command": "to-json-visual-from-clip",
         "title": "Clipboard to J2Html (JSON/TSV/CSV)"
       }
     ],

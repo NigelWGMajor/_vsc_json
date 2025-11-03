@@ -1,5 +1,34 @@
 import * as vscode from 'vscode';
 import { JsonViewerEditorProvider } from './jsonViewerProvider';
+import * as path from 'path';
+
+/**
+ * Get the default folder for saving files.
+ * Priority: .data folder in workspace root > first workspace folder > current file directory
+ */
+async function getDefaultSaveFolder(currentFileUri?: vscode.Uri): Promise<vscode.Uri | undefined> {
+    // Get the first workspace folder
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+
+    if (!workspaceFolder) {
+        // No workspace open, use current file's directory if available
+        return currentFileUri ? vscode.Uri.file(path.dirname(currentFileUri.fsPath)) : undefined;
+    }
+
+    // Check if .data folder exists in workspace root
+    const dataFolderPath = path.join(workspaceFolder.uri.fsPath, '.data');
+    const dataFolderUri = vscode.Uri.file(dataFolderPath);
+
+    try {
+        // Check if .data folder actually exists
+        await vscode.workspace.fs.stat(dataFolderUri);
+        // If stat succeeds, the folder exists
+        return dataFolderUri;
+    } catch {
+        // If .data doesn't exist or can't be accessed, use workspace root
+        return workspaceFolder.uri;
+    }
+}
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('JSON Viewer extension is now active');
@@ -59,8 +88,16 @@ export function activate(context: vscode.ExtensionContext) {
 
             const htmlContent = provider.generateStandaloneHtml(jsonData, document.fileName);
 
+            // Get default save folder and create default file path
+            const defaultFolder = await getDefaultSaveFolder(document.uri);
+            const fileName = path.basename(document.fileName);
+            const defaultFileName = fileName.replace(/\.json$/i, '.html');
+            const defaultUri = defaultFolder
+                ? vscode.Uri.file(path.join(defaultFolder.fsPath, defaultFileName))
+                : vscode.Uri.file(document.fileName.replace('.json', '.html'));
+
             const saveUri = await vscode.window.showSaveDialog({
-                defaultUri: vscode.Uri.file(document.fileName.replace('.json', '.html')),
+                defaultUri: defaultUri,
                 filters: {
                     'HTML': ['html']
                 }
@@ -78,7 +115,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(exportCommand);
 
     // Register command to display clipboard data (JSON, TSV, or CSV)
-    const clipboardCommand = vscode.commands.registerCommand('jsonViewer.clipboardToViewer', async () => {
+    const clipboardCommand = vscode.commands.registerCommand('to-json-visual-from-clip', async () => {
         try {
             const clipboardText = await vscode.env.clipboard.readText();
 

@@ -1,5 +1,34 @@
 import * as vscode from 'vscode';
 import { generateHtmlContent } from './htmlGenerator';
+import * as path from 'path';
+
+/**
+ * Get the default folder for saving files.
+ * Priority: .data folder in workspace root > first workspace folder > current file directory
+ */
+async function getDefaultSaveFolder(currentFileUri?: vscode.Uri): Promise<vscode.Uri | undefined> {
+    // Get the first workspace folder
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+
+    if (!workspaceFolder) {
+        // No workspace open, use current file's directory if available
+        return currentFileUri ? vscode.Uri.file(path.dirname(currentFileUri.fsPath)) : undefined;
+    }
+
+    // Check if .data folder exists in workspace root
+    const dataFolderPath = path.join(workspaceFolder.uri.fsPath, '.data');
+    const dataFolderUri = vscode.Uri.file(dataFolderPath);
+
+    try {
+        // Check if .data folder actually exists
+        await vscode.workspace.fs.stat(dataFolderUri);
+        // If stat succeeds, the folder exists
+        return dataFolderUri;
+    } catch {
+        // If .data doesn't exist or can't be accessed, use workspace root
+        return workspaceFolder.uri;
+    }
+}
 
 export class JsonViewerEditorProvider implements vscode.CustomReadonlyEditorProvider {
     // Store CURRENT working JSON data per document URI (gets modified by redactions)
@@ -246,8 +275,15 @@ export class JsonViewerEditorProvider implements vscode.CustomReadonlyEditorProv
 
             const htmlContent = this.generateStandaloneHtml(jsonData, fileName, theme);
 
+            // Get default save folder and create default file path
+            const defaultFolder = await getDefaultSaveFolder(uri);
+            const defaultFileName = fileName.replace(/\.json$/i, '.html');
+            const defaultUri = defaultFolder
+                ? vscode.Uri.file(path.join(defaultFolder.fsPath, defaultFileName))
+                : vscode.Uri.file(uri.fsPath.replace(/\.json$/i, '.html'));
+
             const saveUri = await vscode.window.showSaveDialog({
-                defaultUri: vscode.Uri.file(uri.fsPath.replace(/\.json$/i, '.html')),
+                defaultUri: defaultUri,
                 filters: {
                     'HTML': ['html']
                 }
@@ -332,8 +368,16 @@ export class JsonViewerEditorProvider implements vscode.CustomReadonlyEditorProv
 
             const jsonOutput = JSON.stringify(jsonData, null, 2);
 
+            // Get default save folder and create default file path
+            const defaultFolder = await getDefaultSaveFolder(uri);
+            const fileName = uri.fsPath.split(/[\\/]/).pop() || 'data.json';
+            const defaultFileName = fileName.replace(/\.json$/i, '-redacted.json');
+            const defaultUri = defaultFolder
+                ? vscode.Uri.file(path.join(defaultFolder.fsPath, defaultFileName))
+                : vscode.Uri.file(uri.fsPath.replace(/\.json$/i, '-redacted.json'));
+
             const saveUri = await vscode.window.showSaveDialog({
-                defaultUri: vscode.Uri.file(uri.fsPath.replace(/\.json$/i, '-redacted.json')),
+                defaultUri: defaultUri,
                 filters: {
                     'JSON': ['json']
                 }
