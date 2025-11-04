@@ -37,6 +37,26 @@ export function activate(context: vscode.ExtensionContext) {
     console.log('JSON Viewer extension is now active');
     vscode.window.showInformationMessage('JSON Viewer extension activated!');
 
+    // Track the last stopped thread ID
+    let lastStoppedThreadId: number | undefined;
+
+    // Register debug adapter tracker to capture stopped events
+    const trackerFactory = vscode.debug.registerDebugAdapterTrackerFactory('*', {
+        createDebugAdapterTracker(session: vscode.DebugSession) {
+            return {
+                onDidSendMessage: (message: any) => {
+                    // Capture the stopped event with threadId
+                    if (message.type === 'event' && message.event === 'stopped') {
+                        lastStoppedThreadId = message.body?.threadId;
+                        console.log(`Debugger stopped on thread: ${lastStoppedThreadId}`);
+                    }
+                }
+            };
+        }
+    });
+
+    context.subscriptions.push(trackerFactory);
+
     // Register the custom editor provider for JSON files
     const provider = new JsonViewerEditorProvider(context);
     const registration = vscode.window.registerCustomEditorProvider(
@@ -207,36 +227,84 @@ export function activate(context: vscode.ExtensionContext) {
         const expression = `System.Text.Json.JsonSerializer.Serialize(${selectedText})`;
 
         try {
-            // Create temp document with expression
-            const tempDoc = await vscode.workspace.openTextDocument({
-                content: expression,
-                language: 'csharp'
+            vscode.window.showInformationMessage('Evaluating expression...');
+
+            // Try multiple methods to get the frameId
+            let frameId: number | undefined;
+
+            // Method 1: Try activeStackItem (VS Code 1.90+)
+            const activeStackItem = vscode.debug.activeStackItem;
+            if (activeStackItem && 'frameId' in activeStackItem) {
+                frameId = (activeStackItem as any).frameId;
+                vscode.window.showInformationMessage(`Using activeStackItem frameId: ${frameId}`);
+            }
+
+            // Method 2: Use tracked stopped thread ID
+            if (!frameId && lastStoppedThreadId) {
+                vscode.window.showInformationMessage(`Trying tracked threadId: ${lastStoppedThreadId}`);
+                const stackTrace = await debugSession.customRequest('stackTrace', {
+                    threadId: lastStoppedThreadId
+                });
+
+                if (stackTrace.stackFrames && stackTrace.stackFrames.length > 0) {
+                    frameId = stackTrace.stackFrames[0].id;
+                    vscode.window.showInformationMessage(`Got frameId from tracked thread: ${frameId}`);
+                }
+            }
+
+            // Method 3: Request all threads and use the first one
+            if (!frameId) {
+                vscode.window.showInformationMessage('Requesting threads...');
+                const threadsResponse = await debugSession.customRequest('threads');
+
+                if (threadsResponse.threads && threadsResponse.threads.length > 0) {
+                    const threadId = threadsResponse.threads[0].id;
+                    vscode.window.showInformationMessage(`Using threadId: ${threadId}`);
+
+                    const stackTrace = await debugSession.customRequest('stackTrace', {
+                        threadId: threadId
+                    });
+
+                    if (stackTrace.stackFrames && stackTrace.stackFrames.length > 0) {
+                        frameId = stackTrace.stackFrames[0].id;
+                        vscode.window.showInformationMessage(`Got frameId from threads: ${frameId}`);
+                    }
+                }
+            }
+
+            if (!frameId) {
+                vscode.window.showErrorMessage('Could not determine stack frame. Make sure execution is paused at a breakpoint.');
+                return;
+            }
+
+            // Evaluate directly using the debug session with the current frame
+            const result = await debugSession.customRequest('evaluate', {
+                expression: expression,
+                frameId: frameId,
+                context: 'repl'
             });
 
-            const tempEditor = await vscode.window.showTextDocument(tempDoc, {
-                preview: false,
-                preserveFocus: false
-            });
+            vscode.window.showInformationMessage(`Got result: ${result.result.substring(0, 50)}...`);
 
-            // Select all text
-            const fullRange = new vscode.Range(
-                tempDoc.lineAt(0).range.start,
-                tempDoc.lineAt(tempDoc.lineCount - 1).range.end
-            );
-            tempEditor.selection = new vscode.Selection(fullRange.start, fullRange.end);
+            // The result should be a JSON string
+            let replOutput = result.result;
 
-            // Send to REPL
-            await vscode.commands.executeCommand('editor.debug.action.selectionToRepl');
+            // Parse the JSON string output (C# returns quoted JSON string)
+            let jsonContent = replOutput;
+            if (jsonContent.startsWith('"') && jsonContent.endsWith('"')) {
+                // Remove outer quotes and unescape
+                jsonContent = jsonContent.substring(1, jsonContent.length - 1);
+                jsonContent = jsonContent.replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+            }
 
-            // Wait for output to appear in clipboard
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            if (!jsonContent || jsonContent.trim() === '') {
+                vscode.window.showErrorMessage('No JSON content captured');
+                return;
+            }
 
-            // Close temp document
-            await vscode.commands.executeCommand('workbench.action.revertAndCloseActiveEditor');
-
-            // Create JSON document
+            // Create JSON document with the extracted content
             const jsonDoc = await vscode.workspace.openTextDocument({
-                content: '',
+                content: jsonContent,
                 language: 'json'
             });
 
@@ -248,19 +316,9 @@ export function activate(context: vscode.ExtensionContext) {
             // Wait a moment for focus
             await new Promise(resolve => setTimeout(resolve, 200));
 
-            // Get clipboard content
-            const clipboardText = await vscode.env.clipboard.readText();
-
-            // Insert clipboard content
-            const success = await jsonEditor.edit(editBuilder => {
-                editBuilder.insert(new vscode.Position(0, 0), clipboardText);
-            });
-
-            if (success) {
-                // Format the document
-                await vscode.commands.executeCommand('editor.action.formatDocument');
-                vscode.window.showInformationMessage('JSON dumped and formatted!');
-            }
+            // Format the document
+            await vscode.commands.executeCommand('editor.action.formatDocument');
+            vscode.window.showInformationMessage(`✓ JSON dumped and formatted! (${jsonContent.length} chars)`);
 
         } catch (error: any) {
             const errorMsg = error?.message || error?.toString() || 'Unknown error';
