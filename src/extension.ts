@@ -299,9 +299,8 @@ export function activate(context: vscode.ExtensionContext) {
             const tempFile = vscode.Uri.file(`${tempDir}/debug-dump-${timestamp}.json`);
             await vscode.workspace.fs.writeFile(tempFile, Buffer.from(jsonContent, 'utf8'));
 
-            // Open the temp file with default JSON editor
-            const jsonDoc = await vscode.workspace.openTextDocument(tempFile);
-            await vscode.window.showTextDocument(jsonDoc, {
+            // Open the temp file with default text editor (not custom editor)
+            await vscode.commands.executeCommand('vscode.openWith', tempFile, 'default', {
                 viewColumn: vscode.ViewColumn.Beside,
                 preserveFocus: false,
                 preview: false
