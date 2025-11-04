@@ -35,7 +35,6 @@ async function getDefaultSaveFolder(currentFileUri?: vscode.Uri): Promise<vscode
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('JSON Viewer extension is now active');
-    vscode.window.showInformationMessage('JSON Viewer extension activated!');
 
     // Track the last stopped thread ID
     let lastStoppedThreadId: number | undefined;
@@ -227,8 +226,6 @@ export function activate(context: vscode.ExtensionContext) {
         const expression = `System.Text.Json.JsonSerializer.Serialize(${selectedText})`;
 
         try {
-            vscode.window.showInformationMessage('Evaluating expression...');
-
             // Try multiple methods to get the frameId
             let frameId: number | undefined;
 
@@ -236,30 +233,25 @@ export function activate(context: vscode.ExtensionContext) {
             const activeStackItem = vscode.debug.activeStackItem;
             if (activeStackItem && 'frameId' in activeStackItem) {
                 frameId = (activeStackItem as any).frameId;
-                vscode.window.showInformationMessage(`Using activeStackItem frameId: ${frameId}`);
             }
 
             // Method 2: Use tracked stopped thread ID
             if (!frameId && lastStoppedThreadId) {
-                vscode.window.showInformationMessage(`Trying tracked threadId: ${lastStoppedThreadId}`);
                 const stackTrace = await debugSession.customRequest('stackTrace', {
                     threadId: lastStoppedThreadId
                 });
 
                 if (stackTrace.stackFrames && stackTrace.stackFrames.length > 0) {
                     frameId = stackTrace.stackFrames[0].id;
-                    vscode.window.showInformationMessage(`Got frameId from tracked thread: ${frameId}`);
                 }
             }
 
             // Method 3: Request all threads and use the first one
             if (!frameId) {
-                vscode.window.showInformationMessage('Requesting threads...');
                 const threadsResponse = await debugSession.customRequest('threads');
 
                 if (threadsResponse.threads && threadsResponse.threads.length > 0) {
                     const threadId = threadsResponse.threads[0].id;
-                    vscode.window.showInformationMessage(`Using threadId: ${threadId}`);
 
                     const stackTrace = await debugSession.customRequest('stackTrace', {
                         threadId: threadId
@@ -267,7 +259,6 @@ export function activate(context: vscode.ExtensionContext) {
 
                     if (stackTrace.stackFrames && stackTrace.stackFrames.length > 0) {
                         frameId = stackTrace.stackFrames[0].id;
-                        vscode.window.showInformationMessage(`Got frameId from threads: ${frameId}`);
                     }
                 }
             }
@@ -283,8 +274,6 @@ export function activate(context: vscode.ExtensionContext) {
                 frameId: frameId,
                 context: 'repl'
             });
-
-            vscode.window.showInformationMessage(`Got result: ${result.result.substring(0, 50)}...`);
 
             // The result should be a JSON string
             let replOutput = result.result;
@@ -302,23 +291,34 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
 
-            // Create JSON document with the extracted content
-            const jsonDoc = await vscode.workspace.openTextDocument({
-                content: jsonContent,
-                language: 'json'
-            });
+            // Save to a temporary file to avoid custom editor association issues
+            const tempDir = context.globalStorageUri.fsPath;
+            await vscode.workspace.fs.createDirectory(vscode.Uri.file(tempDir));
 
-            const jsonEditor = await vscode.window.showTextDocument(jsonDoc, {
+            const timestamp = Date.now();
+            const tempFile = vscode.Uri.file(`${tempDir}/debug-dump-${timestamp}.json`);
+            await vscode.workspace.fs.writeFile(tempFile, Buffer.from(jsonContent, 'utf8'));
+
+            // Open the temp file with default JSON editor
+            const jsonDoc = await vscode.workspace.openTextDocument(tempFile);
+            await vscode.window.showTextDocument(jsonDoc, {
                 viewColumn: vscode.ViewColumn.Beside,
-                preserveFocus: false
+                preserveFocus: false,
+                preview: false
             });
 
-            // Wait a moment for focus
-            await new Promise(resolve => setTimeout(resolve, 200));
+            // Wait a moment for the document to be ready
+            await new Promise(resolve => setTimeout(resolve, 300));
 
-            // Format the document
-            await vscode.commands.executeCommand('editor.action.formatDocument');
-            vscode.window.showInformationMessage(`✓ JSON dumped and formatted! (${jsonContent.length} chars)`);
+            // Format the document - wrap in try/catch to prevent locking issues
+            try {
+                await vscode.commands.executeCommand('editor.action.formatDocument');
+            } catch (formatError) {
+                // Formatting failed, but document is still usable
+                console.log('Format failed:', formatError);
+            }
+
+            vscode.window.showInformationMessage(`JSON dumped successfully!`);
 
         } catch (error: any) {
             const errorMsg = error?.message || error?.toString() || 'Unknown error';

@@ -46,3 +46,7 @@ Press F5 in VSCode to open a new Extension Development Host window.
 ## License
 
 MIT
+
+## Acknowledgments
+
+Claude Sonnet 4.5 was used during this development.
