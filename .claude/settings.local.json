@@ -4,7 +4,8 @@
       "Bash(npm install:*)",
       "Bash(npm run compile:*)",
       "Bash(rm:*)",
-      "Bash(code --list-extensions)"
+      "Bash(code --list-extensions)",
+      "Bash(npm run package:*)"
     ],
     "deny": [],
     "ask": []

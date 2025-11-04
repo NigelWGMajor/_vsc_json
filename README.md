@@ -4,15 +4,27 @@
 
 ## Overview
 
-It allows compact visualization of nested Json data structures. 
+Allows compact visualization of nested Json data structures. 
 
 It can be opened from the toolbar when a Json document is in the editor, or can be launched with `to-json-visual-from-clip` to show data from the clipboard. 
 
-The clipboard visualizer also supports common representations of tabular data (csv, tsv) to support common database dumps: if the data is truly rectangular/tabular, there is a toolbar option to show a wide view with all the data, otherwise only one element of nested collections is shown at a time, but clicking on any property steps to the next, or clicking the label at the counter resets to the first element.
+The clipboard visualizer also supports common representations of tabular data (csv, tsv) to support common database dumps: if the data is truly rectangular/tabular, a toolbar option offers to toggle a wide view with all the data, otherwise only one element of nested collections is shown at a time:
 
-The Save as Html option saves the image with all the stepping functionalty for offline reference.
+- clicking on any property in a collection steps;
+- clicking the label at the head of the collection resets.
 
-Other options include opening in the browser and saving as Json, a light/dark mode toggle and a case toggle for Pascall vs Camel case.
+The saved HTML version includes javascript to drive the collctiopn stepping, so this can be used as a passive data snapshot.
+
+Other options include 
+
+- opening in the browser
+- saving as Json
+- toggle light/dark mode
+- toggle Pascall/Camel casing
+- case toggle for Pascall vs Camel case.
+
+Specific to C# files, selecting a variable or expression and using `to-debug-dump` will attempt to serialize the variable or expression to json and open a new window with that data. 
+(If it is unable to capture, right-click the last output in the debug console and clopy to the clipboard, then use the `to-json-visual-from-clip` command)
 
 ## Development
 
@@ -30,8 +42,6 @@ npm run package
 ## Testing
 
 Press F5 in VSCode to open a new Extension Development Host window.
-
-- `out/` - Compiled JavaScript output
 
 ## License
 
