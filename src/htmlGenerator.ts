@@ -194,10 +194,10 @@ function renderRow(name: string, value: string, level: number, isRoot: boolean, 
 }
 
 function renderIndentMarkers(level: number): string {
-    if (level === 0) return '';
+    if (level <= 1) return '';
 
     let markers = '';
-    for (let i = 0; i < level; i++) {
+    for (let i = 1; i < level; i++) {
         markers += '<span class="indent-marker"></span>';
     }
     return markers;

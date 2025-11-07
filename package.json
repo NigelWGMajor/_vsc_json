@@ -22,7 +22,7 @@
     "customEditors": [
       {
         "viewType": "j2html.editor",
-        "displayName": "J2Html",
+        "displayName": "Json Visualizer",
         "selector": [
           {
             "filenamePattern": "*.json"
@@ -35,7 +35,7 @@
     "commands": [
       {
         "command": "jsonViewer.openViewer",
-        "title": "J2Html",
+        "title": "Json Visualizer",
         "icon": "media/sidebar-icon.svg"
       },
       {
@@ -45,7 +45,7 @@
       },
       {
         "command": "to-json-visual-from-clipboard",
-        "title": "Clipboard to J2Html (JSON/TSV/CSV)"
+        "title": "Clipboard to Json Visualizer (JSON/TSV/CSV)"
       },
       {
         "command": "to-debug-dump-json",
