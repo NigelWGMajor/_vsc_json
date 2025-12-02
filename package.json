@@ -2,7 +2,7 @@
   "name": "vsc-json-extension",
   "displayName": "JSON Visualizer",
   "description": "A VSCode extension for JSON visualization and processing",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "license": "MIT",
   "publisher": "nigelwgmajor",
   "repository": {
@@ -48,8 +48,12 @@
         "title": "Clipboard to Json Visualizer (JSON/TSV/CSV)"
       },
       {
-        "command": "to-debug-dump-json",
-        "title": "to-debug-dump-json"
+        "command": "to-debug-dump-cs",
+        "title": "to-debug-dump-cs"
+      },
+      {
+        "command": "to-debug-dump-ts",
+        "title": "to-debug-dump-ts"
       }
     ],
     "menus": {
@@ -73,6 +77,15 @@
         {
           "command": "jsonViewer.exportHtml",
           "when": "resourceLangId == json"
+        },
+        {
+          "command": "to-json-visual-from-clipboard"
+        },
+        {
+          "command": "to-debug-dump-js"
+        },
+        {
+          "command": "to-debug-dump-cs"
         }
       ]
     }

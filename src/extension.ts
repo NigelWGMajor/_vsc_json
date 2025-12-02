@@ -194,7 +194,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(clipboardCommand);
 
     // Register command to dump C# debug variable to JSON
-    const toDebugDump = vscode.commands.registerCommand('to-debug-dump-json', async () => {
+    const toDebugDump = vscode.commands.registerCommand('to-debug-dump-cs', async () => {
         const editor = vscode.window.activeTextEditor;
         if (!editor) {
             vscode.window.showErrorMessage('No active editor found');
@@ -280,10 +280,19 @@ export function activate(context: vscode.ExtensionContext) {
 
             // Parse the JSON string output (C# returns quoted JSON string)
             let jsonContent = replOutput;
-            if (jsonContent.startsWith('"') && jsonContent.endsWith('"')) {
+            if (
+                (jsonContent.startsWith('"') && jsonContent.endsWith('"')) ||
+                (jsonContent.startsWith('\'') && jsonContent.endsWith('\''))
+            ) {
+                const quoteChar = jsonContent[0];
                 // Remove outer quotes and unescape
                 jsonContent = jsonContent.substring(1, jsonContent.length - 1);
-                jsonContent = jsonContent.replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+                if (quoteChar === '"') {
+                    jsonContent = jsonContent.replace(/\\"/g, '"');
+                } else {
+                    jsonContent = jsonContent.replace(/\\'/g, '\'');
+                }
+                jsonContent = jsonContent.replace(/\\\\/g, '\\');
             }
 
             if (!jsonContent || jsonContent.trim() === '') {
@@ -326,6 +335,167 @@ export function activate(context: vscode.ExtensionContext) {
     });
 
     context.subscriptions.push(toDebugDump);
+
+    // Register command to dump JavaScript/TypeScript debug variable to JSON
+    const toDebugDumpTs = vscode.commands.registerCommand('to-debug-dump-ts', async () => {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+            vscode.window.showErrorMessage('No active editor found');
+            return;
+        }
+
+        // Check if the active document is JavaScript or TypeScript
+        const langId = editor.document.languageId;
+        if (langId !== 'javascript' && langId !== 'typescript' && langId !== 'javascriptreact' && langId !== 'typescriptreact') {
+            vscode.window.showErrorMessage('This command only works with JavaScript/TypeScript files');
+            return;
+        }
+
+        // Check if there's an active debug session
+        const debugSession = vscode.debug.activeDebugSession;
+        if (!debugSession) {
+            vscode.window.showErrorMessage('No active debug session. Please start debugging first.');
+            return;
+        }
+
+        const selection = editor.selection;
+        const selectedText = editor.document.getText(selection).trim();
+
+        if (!selectedText) {
+            vscode.window.showErrorMessage('Please select a variable or expression to dump');
+            return;
+        }
+
+        // Build the JSON.stringify expression with circular reference handling
+        const expression = `JSON.stringify(${selectedText}, (key, value) => {
+            if (value != null && typeof value === 'object') {
+                if (cache.has(value)) {
+                    return '[Circular]';
+                }
+                cache.add(value);
+            }
+            return value;
+        }, 2)`;
+
+        // We need to declare the cache before using it
+        const fullExpression = `(() => {
+            const cache = new Set();
+            return ${expression};
+        })()`;
+
+        try {
+            // Try multiple methods to get the frameId
+            let frameId: number | undefined;
+
+            // Method 1: Try activeStackItem (VS Code 1.90+)
+            const activeStackItem = vscode.debug.activeStackItem;
+            if (activeStackItem && 'frameId' in activeStackItem) {
+                frameId = (activeStackItem as any).frameId;
+            }
+
+            // Method 2: Use tracked stopped thread ID
+            if (!frameId && lastStoppedThreadId) {
+                const stackTrace = await debugSession.customRequest('stackTrace', {
+                    threadId: lastStoppedThreadId
+                });
+
+                if (stackTrace.stackFrames && stackTrace.stackFrames.length > 0) {
+                    frameId = stackTrace.stackFrames[0].id;
+                }
+            }
+
+            // Method 3: Request all threads and use the first one
+            if (!frameId) {
+                const threadsResponse = await debugSession.customRequest('threads');
+
+                if (threadsResponse.threads && threadsResponse.threads.length > 0) {
+                    const threadId = threadsResponse.threads[0].id;
+
+                    const stackTrace = await debugSession.customRequest('stackTrace', {
+                        threadId: threadId
+                    });
+
+                    if (stackTrace.stackFrames && stackTrace.stackFrames.length > 0) {
+                        frameId = stackTrace.stackFrames[0].id;
+                    }
+                }
+            }
+
+            if (!frameId) {
+                vscode.window.showErrorMessage('Could not determine stack frame. Make sure execution is paused at a breakpoint.');
+                return;
+            }
+
+            // Evaluate directly using the debug session with the current frame
+            const result = await debugSession.customRequest('evaluate', {
+                expression: fullExpression,
+                frameId: frameId,
+                context: 'repl'
+            });
+
+            // The result should be a JSON string
+            let jsonContent = result.result;
+
+            // Remove outer quotes if present
+            if (
+                (jsonContent.startsWith('"') && jsonContent.endsWith('"')) ||
+                (jsonContent.startsWith('\'') && jsonContent.endsWith('\''))
+            ) {
+                const quoteChar = jsonContent[0];
+                jsonContent = jsonContent.substring(1, jsonContent.length - 1);
+                // Unescape the string
+                if (quoteChar === '"') {
+                    jsonContent = jsonContent.replace(/\\"/g, '"');
+                } else {
+                    jsonContent = jsonContent.replace(/\\'/g, '\'');
+                }
+                jsonContent = jsonContent
+                    .replace(/\\\\/g, '\\')
+                    .replace(/\\n/g, '\n')
+                    .replace(/\\r/g, '\r')
+                    .replace(/\\t/g, '\t');
+            }
+
+            if (!jsonContent || jsonContent.trim() === '') {
+                vscode.window.showErrorMessage('No JSON content captured');
+                return;
+            }
+
+            // Save to a temporary file to avoid custom editor association issues
+            const tempDir = context.globalStorageUri.fsPath;
+            await vscode.workspace.fs.createDirectory(vscode.Uri.file(tempDir));
+
+            const timestamp = Date.now();
+            const tempFile = vscode.Uri.file(`${tempDir}/debug-dump-ts-${timestamp}.json`);
+            await vscode.workspace.fs.writeFile(tempFile, Buffer.from(jsonContent, 'utf8'));
+
+            // Open the temp file with default text editor (not custom editor)
+            await vscode.commands.executeCommand('vscode.openWith', tempFile, 'default', {
+                viewColumn: vscode.ViewColumn.Beside,
+                preserveFocus: false,
+                preview: false
+            });
+
+            // Wait a moment for the document to be ready
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            // Format the document - wrap in try/catch to prevent locking issues
+            try {
+                await vscode.commands.executeCommand('editor.action.formatDocument');
+            } catch (formatError) {
+                // Formatting failed, but document is still usable
+                console.log('Format failed:', formatError);
+            }
+
+            vscode.window.showInformationMessage(`JSON dumped successfully!`);
+
+        } catch (error: any) {
+            const errorMsg = error?.message || error?.toString() || 'Unknown error';
+            vscode.window.showErrorMessage(`Failed: ${errorMsg}`);
+        }
+    });
+
+    context.subscriptions.push(toDebugDumpTs);
 }
 
 function parseDelimitedToJson(text: string, delimiter: string): any[] | null {

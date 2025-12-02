@@ -23,7 +23,8 @@ Other options include
 - toggle Pascall/Camel casing
 - case toggle for Pascall vs Camel case.
 
-Specific to C# files, selecting a variable or expression and using `to-debug-dump` will attempt to serialize the variable or expression to json and open a new window with that data. 
+Specific to C# files, selecting a variable or expression and using `to-debug-dump-cs` will attempt to serialize the variable or expression to json and open a new window with that data. 
+Typescript and Javascript should work with `to-debug-dump-js`.
 (If it is unable to capture, right-click the last output in the debug console and clopy to the clipboard, then use the `to-json-visual-from-clip` command)
 
 ## Development

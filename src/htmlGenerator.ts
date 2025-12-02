@@ -43,6 +43,8 @@ export function generateHtmlContent(jsonData: any, fileName: string, theme?: str
         </div>
     </div>
     <div class="context-menu" id="contextMenu">
+        <div class="context-menu-item" onclick="copyValue()">Copy Value</div>
+        <div class="context-menu-item" onclick="copyAllValues()">Copy All Values</div>
         <div class="context-menu-item danger" onclick="redactSelectedRow()">Redact This Row</div>
     </div>
     <script>${getEmbeddedJavaScript()}</script>
@@ -1160,6 +1162,95 @@ function hideContextMenu() {
     const menu = document.getElementById('contextMenu');
     menu.classList.remove('visible');
     contextMenuTarget = null;
+}
+
+function copyValue() {
+    if (!contextMenuTarget) return;
+
+    // Get the value element from the target
+    const valueEl = contextMenuTarget.querySelector('.value');
+    if (!valueEl) {
+        console.warn('No value element found');
+        hideContextMenu();
+        return;
+    }
+
+    // Get the text content (this strips HTML tags)
+    const textValue = valueEl.textContent.trim();
+
+    // Copy to clipboard
+    navigator.clipboard.writeText(textValue).then(() => {
+        console.log('Copied to clipboard:', textValue);
+    }).catch(err => {
+        console.error('Failed to copy:', err);
+    });
+
+    hideContextMenu();
+}
+
+function copyAllValues() {
+    if (!contextMenuTarget) return;
+
+    // Get the property name from the current target
+    const nameEl = contextMenuTarget.querySelector('.name');
+    if (!nameEl) {
+        console.warn('No property name found, falling back to copy single value');
+        copyValue();
+        return;
+    }
+
+    const propertyName = nameEl.textContent.trim();
+    console.log('Copying all values for property:', propertyName);
+
+    // Find the parent array container
+    const arrayContainer = contextMenuTarget.closest('.array-container');
+
+    if (!arrayContainer) {
+        console.warn('Not inside an array, falling back to copy single value');
+        copyValue();
+        return;
+    }
+
+    // Get all array elements
+    const arrayElements = arrayContainer.querySelectorAll('.array-element');
+    const values = [];
+
+    arrayElements.forEach((element) => {
+        // Skip redacted elements
+        if (element.classList.contains('redacted')) return;
+
+        // Find the row with the matching property name
+        const rows = element.querySelectorAll(':scope > .row');
+        rows.forEach(row => {
+            if (row.classList.contains('redacted')) return;
+
+            const rowNameEl = row.querySelector('.name');
+            const rowValueEl = row.querySelector('.value');
+
+            if (rowNameEl && rowValueEl && rowNameEl.textContent.trim() === propertyName) {
+                const value = rowValueEl.textContent.trim();
+                values.push(value);
+            }
+        });
+    });
+
+    if (values.length === 0) {
+        console.warn('No values found for property:', propertyName);
+        hideContextMenu();
+        return;
+    }
+
+    // Join values with newlines for easy copying
+    const textOutput = values.join('\\n');
+
+    // Copy to clipboard
+    navigator.clipboard.writeText(textOutput).then(() => {
+        console.log('Copied', values.length, 'values to clipboard for property:', propertyName);
+    }).catch(err => {
+        console.error('Failed to copy:', err);
+    });
+
+    hideContextMenu();
 }
 
 function redactSelectedRow() {
