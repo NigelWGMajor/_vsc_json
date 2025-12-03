@@ -346,8 +346,14 @@ export function activate(context: vscode.ExtensionContext) {
 
         // Check if the active document is JavaScript or TypeScript
         const langId = editor.document.languageId;
-        if (langId !== 'javascript' && langId !== 'typescript' && langId !== 'javascriptreact' && langId !== 'typescriptreact') {
-            vscode.window.showErrorMessage('This command only works with JavaScript/TypeScript files');
+        if (langId !== 'javascript'
+            && langId !== 'typescript'
+            && langId !== 'javascriptreact'
+            && langId !== 'typescriptreact'
+            && langId !== 'html'
+            && langId !== 'razor'
+        ) {
+            vscode.window.showErrorMessage('This command only works with JavaScript, TypeScript, Html and Razor files');
             return;
         }
 
@@ -529,4 +535,4 @@ function parseDelimitedToJson(text: string, delimiter: string): any[] | null {
     return data;
 }
 
-export function deactivate() {}
+export function deactivate() { }
