@@ -16,8 +16,12 @@ export function generateHtmlContent(jsonData: any, fileName: string, theme?: str
 <body${bodyClass} data-wide-view="${wideView ? 'true' : 'false'}">
     <div class="container">
         <div class="header">
-            <h2 class="title">${escapeHtml(fileName)}</h2>
-            <div class="toolbar">
+            <div class="header-top">
+                <h2 class="title">${escapeHtml(fileName)}</h2>
+                <div class="toolbar">
+                <button class="toolbar-btn" onclick="toggleSearch()" title="Search (Alt+F)">
+                    ${getSearchIcon()}
+                </button>
                 <button class="toolbar-btn" onclick="toggleTheme()" title="Toggle Light/Dark Mode">
                     <span id="themeIcon">${getLightDarkIcon()}</span>
                 </button>
@@ -39,6 +43,14 @@ export function generateHtmlContent(jsonData: any, fileName: string, theme?: str
                 <button class="toolbar-btn" id="exportJsonBtn" onclick="exportRedactedJson()" title="Export JSON">
                     ${getSaveJsonIcon()}
                 </button>
+            </div>
+            </div>
+            <div class="search-container" id="searchContainer" style="display:none;">
+                <input type="text" id="searchInput" class="search-input" placeholder="Search..." />
+                <span class="search-counter" id="searchCounter">0/0</span>
+                <button class="search-nav-btn" onclick="previousSearchResult()" title="Previous (Shift+F3)">▲</button>
+                <button class="search-nav-btn" onclick="nextSearchResult()" title="Next (F3)">▼</button>
+                <button class="search-close-btn" onclick="closeSearch()" title="Close (Escape)">✕</button>
             </div>
         </div>
         <div class="content">
@@ -232,6 +244,13 @@ function escapeHtml(text: string): string {
         .replace(/'/g, '&#039;');
 }
 
+function getSearchIcon(): string {
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="12" height="12" class="icon">
+  <circle cx="13" cy="13" r="8" fill="none" stroke="currentColor" stroke-width="2"/>
+  <path d="M 19 19 L 27 27" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`;
+}
+
 function getLightDarkIcon(): string {
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="12" height="12" class="icon">
   <path d="M 3 16 A 12.500632743066973 12.500632743066973 0 0 0 28 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -421,11 +440,17 @@ body {
     padding: 12px 20px;
     border-bottom: 1px solid var(--border-color);
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    gap: 8px;
     position: sticky;
     top: 0;
     z-index: 1000;
+}
+
+.header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .title {
@@ -786,6 +811,93 @@ body.hide-underscore #hideUnderscoreBtn {
 .wide-view-active #wideViewBtn {
     background: var(--bg-hover);
     border: 1px solid var(--name-color);
+}
+
+/* Search UI */
+.search-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+}
+
+.search-input {
+    flex: 1;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-size: 14px;
+    outline: none;
+}
+
+.search-input:focus {
+    border-color: var(--button-bg);
+}
+
+.search-counter {
+    color: var(--text-secondary);
+    font-size: 13px;
+    min-width: 40px;
+    text-align: center;
+}
+
+.search-nav-btn,
+.search-close-btn {
+    background: var(--button-bg);
+    border: none;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background 0.2s;
+}
+
+.search-nav-btn:hover,
+.search-close-btn:hover {
+    background: var(--button-hover);
+}
+
+.search-close-btn {
+    font-weight: bold;
+}
+
+/* Search highlighting - red tinge for matches */
+.row.search-match {
+    background: rgba(255, 100, 100, 0.2) !important;
+    border-left: 3px solid rgba(255, 50, 50, 0.6);
+}
+
+.row.search-match-current {
+    background: rgba(255, 100, 100, 0.4) !important;
+    border-left: 3px solid rgba(255, 50, 50, 1);
+}
+
+body.light-mode .row.search-match {
+    background: rgba(255, 150, 150, 0.3) !important;
+    border-left: 3px solid rgba(255, 100, 100, 0.7);
+}
+
+body.light-mode .row.search-match-current {
+    background: rgba(255, 150, 150, 0.5) !important;
+    border-left: 3px solid rgba(255, 100, 100, 1);
+}
+
+.object-header.search-match,
+.array-header.search-match {
+    background: rgba(255, 100, 100, 0.2) !important;
+    border-left: 3px solid rgba(255, 50, 50, 0.6);
+}
+
+.object-header.search-match-current,
+.array-header.search-match-current {
+    background: rgba(255, 100, 100, 0.4) !important;
+    border-left: 3px solid rgba(255, 50, 50, 1);
 }
 `;
 }
@@ -1650,6 +1762,171 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Also hide on scroll
     document.querySelector('.content').addEventListener('scroll', hideContextMenu);
+});
+
+// Search functionality
+let searchMatches = [];
+let currentSearchIndex = -1;
+
+function toggleSearch() {
+    const searchContainer = document.getElementById('searchContainer');
+    const searchInput = document.getElementById('searchInput');
+
+    if (searchContainer.style.display === 'none') {
+        searchContainer.style.display = 'flex';
+        searchInput.focus();
+    } else {
+        closeSearch();
+    }
+}
+
+function closeSearch() {
+    const searchContainer = document.getElementById('searchContainer');
+    const searchInput = document.getElementById('searchInput');
+
+    searchContainer.style.display = 'none';
+    searchInput.value = '';
+    clearSearchHighlights();
+}
+
+function clearSearchHighlights() {
+    // Remove all search highlight classes
+    document.querySelectorAll('.search-match, .search-match-current').forEach(el => {
+        el.classList.remove('search-match', 'search-match-current');
+    });
+    searchMatches = [];
+    currentSearchIndex = -1;
+    updateSearchCounter();
+}
+
+function performSearch(query) {
+    clearSearchHighlights();
+
+    if (!query || query.trim() === '') {
+        return;
+    }
+
+    const lowerQuery = query.toLowerCase();
+
+    // Find all rows (including object and array headers)
+    const allRows = document.querySelectorAll('.row, .object-header, .array-header');
+
+    allRows.forEach(row => {
+        // Skip redacted and hidden rows
+        if (row.classList.contains('redacted') ||
+            (document.body.classList.contains('hide-underscore') &&
+             row.dataset.startsWithUnderscore === 'true')) {
+            return;
+        }
+
+        // Get name and value elements
+        const nameEl = row.querySelector('.name');
+        const valueEl = row.querySelector('.value');
+
+        let nameText = nameEl ? nameEl.textContent.toLowerCase() : '';
+        let valueText = valueEl ? valueEl.textContent.toLowerCase() : '';
+
+        // Check if either name or value matches the search query
+        if (nameText.includes(lowerQuery) || valueText.includes(lowerQuery)) {
+            row.classList.add('search-match');
+            searchMatches.push(row);
+        }
+    });
+
+    // If we have matches, highlight the first one
+    if (searchMatches.length > 0) {
+        currentSearchIndex = 0;
+        highlightCurrentMatch();
+    }
+
+    updateSearchCounter();
+}
+
+function highlightCurrentMatch() {
+    // Remove current highlight from all
+    document.querySelectorAll('.search-match-current').forEach(el => {
+        el.classList.remove('search-match-current');
+    });
+
+    if (currentSearchIndex >= 0 && currentSearchIndex < searchMatches.length) {
+        const currentMatch = searchMatches[currentSearchIndex];
+        currentMatch.classList.add('search-match-current');
+
+        // Scroll to the current match
+        currentMatch.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        // If this row is inside an array element, make sure that array element is visible
+        const arrayElement = currentMatch.closest('.array-element');
+        if (arrayElement) {
+            const arrayId = arrayElement.dataset.arrayId;
+            const index = parseInt(arrayElement.dataset.index);
+            if (arrayId && !isNaN(index)) {
+                updateArrayDisplay(arrayId, index);
+            }
+        }
+    }
+}
+
+function updateSearchCounter() {
+    const counter = document.getElementById('searchCounter');
+    if (searchMatches.length === 0) {
+        counter.textContent = '0/0';
+    } else {
+        counter.textContent = (currentSearchIndex + 1) + '/' + searchMatches.length;
+    }
+}
+
+function nextSearchResult() {
+    if (searchMatches.length === 0) return;
+
+    currentSearchIndex = (currentSearchIndex + 1) % searchMatches.length;
+    highlightCurrentMatch();
+    updateSearchCounter();
+}
+
+function previousSearchResult() {
+    if (searchMatches.length === 0) return;
+
+    currentSearchIndex = (currentSearchIndex - 1 + searchMatches.length) % searchMatches.length;
+    highlightCurrentMatch();
+    updateSearchCounter();
+}
+
+// Handle search input changes
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', function(e) {
+            performSearch(e.target.value);
+        });
+    }
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    // Alt+F to open search
+    if (e.altKey && e.key === 'f') {
+        e.preventDefault();
+        toggleSearch();
+    }
+
+    // F3 to navigate to next result
+    if (e.key === 'F3') {
+        e.preventDefault();
+        if (e.shiftKey) {
+            previousSearchResult();
+        } else {
+            nextSearchResult();
+        }
+    }
+
+    // Escape to close search
+    if (e.key === 'Escape') {
+        const searchContainer = document.getElementById('searchContainer');
+        if (searchContainer && searchContainer.style.display !== 'none') {
+            closeSearch();
+        }
+    }
 });
 `;
 }
