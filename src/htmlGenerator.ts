@@ -30,6 +30,9 @@ export function generateHtmlContent(jsonData: any, fileName: string, theme?: str
                 <button class="toolbar-btn" onclick="toggleCase()" title="Toggle Case (Pascal/camel)">
                     ${getToggleCaseIcon()}
                 </button>
+                <button class="toolbar-btn" id="hideUnderscoreBtn" onclick="toggleHideUnderscore()" title="Hide rows starting with underscore">
+                    ${getHideUnderscoreIcon()}
+                </button>
                 <button class="toolbar-btn" id="wideViewBtn" onclick="toggleWideView()" title="Toggle Wide View (Tabular Data)" style="display:none;">
                     ${getWideIcon()}
                 </button>
@@ -105,8 +108,11 @@ function renderObject(name: string, obj: any, level: number, isRoot: boolean, cu
     let html = '';
 
     if (!isRoot) {
-        html += `<div class="object-container" data-path="${escapeHtml(currentPath)}">`;
-        html += `<div class="object-header row level-${level}" data-level="${level}" data-path="${escapeHtml(currentPath)}">`;
+        const startsWithUnderscore = name.startsWith('_');
+        const underscoreAttr = startsWithUnderscore ? ' data-starts-with-underscore="true"' : '';
+
+        html += `<div class="object-container" data-path="${escapeHtml(currentPath)}"${underscoreAttr}>`;
+        html += `<div class="object-header row level-${level}" data-level="${level}" data-path="${escapeHtml(currentPath)}"${underscoreAttr}>`;
         html += `<div class="indent">${renderIndentMarkers(level)}</div>`;
         html += `<div class="header-content">`;
         html += `<div class="name">${escapeHtml(name)}</div>`;
@@ -134,11 +140,13 @@ function renderArray(name: string, arr: any[], level: number, isRoot: boolean, c
     }
 
     const arrayId = `array_${Math.random().toString(36).substring(2, 11)}`;
+    const startsWithUnderscore = name.startsWith('_');
+    const underscoreAttr = startsWithUnderscore ? ' data-starts-with-underscore="true"' : '';
 
-    let html = `<div class="array-container" data-array-id="${arrayId}" data-path="${escapeHtml(currentPath)}">`;
+    let html = `<div class="array-container" data-array-id="${arrayId}" data-path="${escapeHtml(currentPath)}"${underscoreAttr}>`;
 
     // Array header
-    html += `<div class="array-header row level-${level}" data-level="${level}" data-path="${escapeHtml(currentPath)}">`;
+    html += `<div class="array-header row level-${level}" data-level="${level}" data-path="${escapeHtml(currentPath)}"${underscoreAttr}>`;
     html += `<div class="indent">${renderIndentMarkers(level)}</div>`;
     html += `<div class="header-content">`;
     html += `<div class="name clickable" onclick="resetArray('${arrayId}')" title="Click to reset to first element">${escapeHtml(name)}</div>`;
@@ -186,7 +194,10 @@ function renderRow(name: string, value: string, level: number, isRoot: boolean, 
         value = `<span class="value">${value}</span>`;
     }
 
-    let html = `<div class="row level-${level} clickable" data-level="${level}" data-path="${escapeHtml(path)}" onclick="nextInParentArray(this)">`;
+    const startsWithUnderscore = name.startsWith('_');
+    const underscoreAttr = startsWithUnderscore ? ' data-starts-with-underscore="true"' : '';
+
+    let html = `<div class="row level-${level} clickable" data-level="${level}" data-path="${escapeHtml(path)}"${underscoreAttr} onclick="nextInParentArray(this)">`;
     html += `<div class="indent">${renderIndentMarkers(level)}</div>`;
     html += `<div class="name">${escapeHtml(name)}</div>`;
     html += `<div class="value">${value}</div>`;
@@ -318,6 +329,18 @@ function getSaveJsonIcon(): string {
   <path d="M 18 10 Q 20.8125 28.8125 11 22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M 19 9 Q 19.5 31.8125 11 22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M 18 10 L 19 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`;
+}
+
+function getHideUnderscoreIcon(): string {
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="12" height="12" class="icon">
+  <path d="M 4 26 L 28 26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 8 8 L 8 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 16 8 L 16 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 24 8 L 24 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="8" cy="8" r="1.5" fill="currentColor"/>
+  <circle cx="16" cy="8" r="1.5" fill="currentColor"/>
+  <circle cx="24" cy="8" r="1.5" fill="currentColor"/>
 </svg>`;
 }
 
@@ -665,6 +688,19 @@ body {
     display: none !important;
 }
 
+/* Hide underscore rows when enabled */
+body.hide-underscore .row[data-starts-with-underscore="true"],
+body.hide-underscore .object-container[data-starts-with-underscore="true"],
+body.hide-underscore .array-container[data-starts-with-underscore="true"] {
+    display: none !important;
+}
+
+/* Highlight the button when active */
+body.hide-underscore #hideUnderscoreBtn {
+    background: var(--bg-hover);
+    border: 1px solid var(--name-color);
+}
+
 /* Wide view for tabular data */
 .wide-view .content {
     overflow-x: auto;
@@ -802,6 +838,30 @@ function toggleTheme() {
         if (savedTheme === 'light') {
             document.body.classList.add('light-mode');
         }
+    }
+})();
+
+// Hide underscore rows management
+function toggleHideUnderscore() {
+    const body = document.body;
+
+    if (body.classList.contains('hide-underscore')) {
+        body.classList.remove('hide-underscore');
+        localStorage.setItem('hideUnderscore', 'false');
+    } else {
+        body.classList.add('hide-underscore');
+        localStorage.setItem('hideUnderscore', 'true');
+    }
+}
+
+// Initialize hide-underscore state from localStorage (default to hiding)
+(function initHideUnderscore() {
+    const savedHideUnderscore = localStorage.getItem('hideUnderscore');
+
+    // Default to hiding underscore rows (true)
+    if (savedHideUnderscore === null || savedHideUnderscore === 'true') {
+        document.body.classList.add('hide-underscore');
+        localStorage.setItem('hideUnderscore', 'true');
     }
 })();
 

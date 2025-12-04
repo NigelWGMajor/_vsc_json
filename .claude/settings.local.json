@@ -5,7 +5,9 @@
       "Bash(npm run compile:*)",
       "Bash(rm:*)",
       "Bash(code --list-extensions)",
-      "Bash(npm run package:*)"
+      "Bash(npm run package:*)",
+      "Bash(dir:*)",
+      "Bash(findstr:*)"
     ],
     "deny": [],
     "ask": []
