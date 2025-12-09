@@ -223,7 +223,7 @@ export function activate(context: vscode.ExtensionContext) {
         }
 
         // Build the serialization expression
-        const expression = `System.Text.Json.JsonSerializer.Serialize(${selectedText})`;
+        const expression = `Newtonsoft.Json.JsonConvert.SerializeObject(${selectedText})`;
 
         try {
             // Try multiple methods to get the frameId

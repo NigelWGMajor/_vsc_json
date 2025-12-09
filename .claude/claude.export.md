@@ -15,7 +15,7 @@ This document provides complete instructions and sample code to implement the C#
 - VS Code Extension API knowledge
 - TypeScript for extension development
 - Active C# debug session in VS Code
-- System.Text.Json available in the debugged application
+- NewtonSoft.Json available in the debugged application
 
 ## Architecture
 
@@ -100,7 +100,7 @@ export function activate(context: vscode.ExtensionContext) {
         }
 
         // Build the serialization expression
-        const expression = `System.Text.Json.JsonSerializer.Serialize(${selectedText})`;
+        const expression = `Newtonsoft.Json.JsonConvert.SerializeObject(${selectedText})`;
 
         try {
             // Create temp document with expression
@@ -210,7 +210,7 @@ if (!selectedText) {
 
 ```typescript
 // Wraps the selected text with JSON serializer
-const expression = `System.Text.Json.JsonSerializer.Serialize(${selectedText})`;
+const expression = `Newtonsoft.Json.JsonConvert.SerializeObject(${selectedText})`;
 ```
 
 ### Step 4: Create and Submit Temporary C# Document
@@ -350,14 +350,14 @@ Result opens as formatted JSON:
 
 ### 1. Change Serialization Library
 
-Replace `System.Text.Json.JsonSerializer.Serialize` with:
+
 - **Newtonsoft.Json**: `Newtonsoft.Json.JsonConvert.SerializeObject`
 - **Custom formatter**: Your own serialization logic
 
 ### 2. Add Serialization Options
 
 ```typescript
-const expression = `System.Text.Json.JsonSerializer.Serialize(${selectedText}, new System.Text.Json.JsonSerializerOptions { WriteIndented = true, ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.Preserve })`;
+const expression = `Newtonsoft.Json.JsonConvert.SerializeObject(${selectedText}, new Newtonsoft.Json.JsonSerializerOptions { WriteIndented = true, ReferenceHandler = Newtonsoft.Json.Serialization.ReferenceHandler.Preserve })`;
 ```
 
 ### 3. Adjust Timing
@@ -402,7 +402,7 @@ const jsonEditor = await vscode.window.showTextDocument(jsonDoc, {
 3. **Timing Sensitive**: May need adjustment for different machines/workloads
 4. **Circular References**: May fail with circular object graphs (use ReferenceHandler)
 5. **Large Objects**: Very large objects may cause performance issues
-6. **System.Text.Json Availability**: Target application must have .NET Core 3.0+ or include the NuGet package
+6. **Newtonsoft.Json Availability**: Target application must have .NET Core 3.0+ or include the NuGet package
 
 ## Troubleshooting
 
@@ -416,7 +416,7 @@ await new Promise(resolve => setTimeout(resolve, 2000));
 ```
 
 ### Issue: Serialization error in REPL
-**Solution**: Check if System.Text.Json is available. Alternative:
+**Solution**: Check if Newtonsoft.Json is available. Alternative:
 ```typescript
 const expression = `Newtonsoft.Json.JsonConvert.SerializeObject(${selectedText})`;
 ```
@@ -526,7 +526,7 @@ This feature provides a powerful debugging tool for C# developers, allowing quic
 - Automatic formatting
 - Side-by-side viewing with source code
 - Fast workflow for debugging complex objects
-- Works with any C# project that includes System.Text.Json
+- Works with any C# project that includes Newtonsoft.Json
 
 **Implementation Time**: ~1 hour including testing
 
