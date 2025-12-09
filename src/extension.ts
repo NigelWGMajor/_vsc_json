@@ -170,8 +170,8 @@ export function activate(context: vscode.ExtensionContext) {
                 }
 
                 if (!jsonData) {
-                    vscode.window.showErrorMessage('Clipboard does not contain valid JSON, TSV, or CSV data');
-                    return;
+                    // Fall back to treating the clipboard as plain text
+                    jsonData = clipboardText;
                 }
             }
 
@@ -505,19 +505,29 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 function parseDelimitedToJson(text: string, delimiter: string): any[] | null {
-    const lines = text.split('\n').map(line => line.trim()).filter(line => line !== '');
+    const lines = text
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(line => line !== '');
 
     if (lines.length < 2) {
         return null; // Need at least header + 1 data row
     }
 
     // First line is headers
-    const headers = lines[0].split(delimiter);
+    const headers = splitDelimitedLine(lines[0], delimiter);
+
+    const expectedColumns = headers.length;
 
     // Remaining lines are data
     const data: any[] = [];
     for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(delimiter);
+        const values = splitDelimitedLine(lines[i], delimiter);
+
+        if (values.length > expectedColumns) {
+            return null;
+        }
+
         const row: any = {};
 
         for (let j = 0; j < headers.length; j++) {
@@ -533,6 +543,57 @@ function parseDelimitedToJson(text: string, delimiter: string): any[] | null {
     }
 
     return data;
+}
+
+function splitDelimitedLine(line: string, delimiter: string): string[] {
+    if (delimiter === '\t') {
+        return line.split('\t');
+    }
+
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    let quoteChar = '';
+
+    for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+
+        if (!inQuotes && (char === '"' || char === '\'')) {
+            const hasClosingQuote = line.indexOf(char, i + 1) !== -1;
+            if (!hasClosingQuote) {
+                current += char;
+                continue;
+            }
+
+            inQuotes = true;
+            quoteChar = char;
+            current += char;
+            continue;
+        }
+
+        if (inQuotes && char === quoteChar) {
+            const nextChar = line[i + 1];
+            if (nextChar === quoteChar) {
+                current += quoteChar;
+                i++;
+            } else {
+                inQuotes = false;
+                quoteChar = '';
+                current += char;
+            }
+            continue;
+        }
+
+        if (char === delimiter && !inQuotes) {
+            result.push(current);
+            current = '';
+        } else {
+            current += char;
+        }
+    }
+
+    result.push(current);
+    return result;
 }
 
 export function deactivate() { }

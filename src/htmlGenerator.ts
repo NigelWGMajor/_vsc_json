@@ -102,12 +102,15 @@ function renderPrimitive(value: any): string {
     const type = typeof value;
     const strValue = String(value);
     const truncated = truncateValue(strValue);
+    const escapedFullValue = escapeHtml(strValue);
+    const escapedDisplayValue = escapeHtml(truncated);
+    const attributes = [`class="value value-${type}"`, `data-full-value="${escapedFullValue}"`];
 
     if (truncated !== strValue) {
-        return `<span class="value value-${type}" title="${escapeHtml(strValue)}">${escapeHtml(truncated)}</span>`;
+        attributes.push(`title="${escapedFullValue}"`);
     }
 
-    return `<span class="value value-${type}">${escapeHtml(strValue)}</span>`;
+    return `<span ${attributes.join(' ')}>${escapedDisplayValue}</span>`;
 }
 
 function renderObject(name: string, obj: any, level: number, isRoot: boolean, currentPath: string = ''): string {
@@ -557,15 +560,14 @@ body {
     word-break: break-word;
 }
 
-.value {
-    color: var(--text-primary);
-    font-family: 'Consolas', 'Courier New', monospace;
-    flex: 1;
-    word-break: break-word;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
+    .value {
+        color: var(--text-primary);
+        font-family: 'Consolas', 'Courier New', monospace;
+        flex: 1;
+        word-break: break-word;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+    }
 
 .value-string {
     color: var(--value-string);
@@ -1336,29 +1338,37 @@ function hideContextMenu() {
     contextMenuTarget = null;
 }
 
-function copyValue() {
-    if (!contextMenuTarget) return;
+    function copyValue() {
+        if (!contextMenuTarget) return;
 
-    // Get the value element from the target
-    const valueEl = contextMenuTarget.querySelector('.value');
-    if (!valueEl) {
-        console.warn('No value element found');
+        // Get the value element from the target
+        const valueEl = contextMenuTarget.querySelector('.value');
+        if (!valueEl) {
+            console.warn('No value element found');
+            hideContextMenu();
+            return;
+        }
+
+        const textValue = getFullTextFromValueElement(valueEl);
+
+        // Copy to clipboard
+        navigator.clipboard.writeText(textValue).then(() => {
+            console.log('Copied to clipboard:', textValue);
+        }).catch(err => {
+            console.error('Failed to copy:', err);
+        });
+
         hideContextMenu();
-        return;
     }
 
-    // Get the text content (this strips HTML tags)
-    const textValue = valueEl.textContent.trim();
+    function getFullTextFromValueElement(valueEl) {
+        if (!valueEl) return '';
 
-    // Copy to clipboard
-    navigator.clipboard.writeText(textValue).then(() => {
-        console.log('Copied to clipboard:', textValue);
-    }).catch(err => {
-        console.error('Failed to copy:', err);
-    });
+        const dataValue = valueEl.getAttribute('data-full-value');
+        const source = dataValue !== null ? dataValue : valueEl.textContent;
 
-    hideContextMenu();
-}
+        return source ? source.trim() : '';
+    }
 
 function copyAllValues() {
     if (!contextMenuTarget) return;
@@ -1400,7 +1410,7 @@ function copyAllValues() {
             const rowValueEl = row.querySelector('.value');
 
             if (rowNameEl && rowValueEl && rowNameEl.textContent.trim() === propertyName) {
-                const value = rowValueEl.textContent.trim();
+                const value = getFullTextFromValueElement(rowValueEl);
                 values.push(value);
             }
         });
