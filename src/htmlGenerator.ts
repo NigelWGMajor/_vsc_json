@@ -228,7 +228,7 @@ function renderIndentMarkers(level: number): string {
     return markers;
 }
 
-function truncateValue(value: string, maxLength: number = 100): string {
+function truncateValue(value: string, maxLength: number = 2000): string {
     if (value.length <= maxLength) {
         return value;
     }
