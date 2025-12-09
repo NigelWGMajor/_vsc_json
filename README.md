@@ -18,6 +18,7 @@ The saved HTML version includes javascript to drive the collctiopn stepping, so 
 Other options include 
 
 - opening in the browser
+- sorting the active JSON file alphabetically from the editor toolbar or command palette
 - saving as Json
 - toggle light/dark mode
 - toggle Pascall/Camel casing

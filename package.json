@@ -44,6 +44,11 @@
         "icon": "media/save-html.svg"
       },
       {
+        "command": "jsonViewer.sortJson",
+        "title": "Sort JSON Alphabetically",
+        "icon": "$(sort-preference)"
+      },
+      {
         "command": "to-json-visual-from-clipboard",
         "title": "Clipboard to Json Visualizer (JSON/TSV/CSV)"
       },
@@ -67,6 +72,11 @@
           "command": "jsonViewer.exportHtml",
           "when": "resourceLangId == json",
           "group": "navigation"
+        },
+        {
+          "command": "jsonViewer.sortJson",
+          "when": "resourceLangId == json || resourceLangId == jsonc",
+          "group": "navigation"
         }
       ],
       "commandPalette": [
@@ -77,6 +87,10 @@
         {
           "command": "jsonViewer.exportHtml",
           "when": "resourceLangId == json"
+        },
+        {
+          "command": "jsonViewer.sortJson",
+          "when": "resourceLangId == json || resourceLangId == jsonc"
         },
         {
           "command": "to-json-visual-from-clipboard"

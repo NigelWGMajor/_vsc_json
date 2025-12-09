@@ -140,6 +140,78 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(exportCommand);
 
+    // Register command to sort JSON alphabetically
+    const sortCommand = vscode.commands.registerCommand('jsonViewer.sortJson', async () => {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+            vscode.window.showErrorMessage('No active editor');
+            return;
+        }
+
+        const document = editor.document;
+        const langId = document.languageId;
+        const isJsonFile = langId === 'json'
+            || langId === 'jsonc'
+            || document.fileName.toLowerCase().endsWith('.json');
+
+        if (!isJsonFile) {
+            vscode.window.showErrorMessage('Active file is not a JSON file');
+            return;
+        }
+
+        const originalText = document.getText();
+        let parsed: any;
+
+        try {
+            parsed = JSON.parse(originalText);
+        } catch (error: any) {
+            const message = error?.message ? `: ${error.message}` : '';
+            vscode.window.showErrorMessage(`JSON is invalid and cannot be sorted${message}`);
+            return;
+        }
+
+        // Determine indentation based on current editor settings
+        let indent: string | number = 2;
+        const tabSize = typeof editor.options.tabSize === 'number' ? editor.options.tabSize : 2;
+        const normalizedTabSize = Math.min(Math.max(tabSize, 1), 10);
+        if (editor.options.insertSpaces === false) {
+            indent = '\t';
+        } else {
+            indent = ' '.repeat(normalizedTabSize);
+        }
+
+        const sortedObject = sortJsonValue(parsed);
+        const eol = document.eol === vscode.EndOfLine.CRLF ? '\r\n' : '\n';
+        const hadTrailingEol = originalText.endsWith(eol);
+
+        let sortedText = JSON.stringify(sortedObject, null, indent);
+        sortedText = sortedText.replace(/\n/g, eol);
+
+        if (hadTrailingEol && !sortedText.endsWith(eol)) {
+            sortedText += eol;
+        } else if (!hadTrailingEol && sortedText.endsWith(eol)) {
+            sortedText = sortedText.slice(0, -eol.length);
+        }
+
+        const entireRange = new vscode.Range(
+            document.positionAt(0),
+            document.positionAt(originalText.length)
+        );
+
+        const editSucceeded = await editor.edit(editBuilder => {
+            editBuilder.replace(entireRange, sortedText);
+        });
+
+        if (!editSucceeded) {
+            vscode.window.showErrorMessage('Failed to apply sorted JSON to the document');
+            return;
+        }
+
+        vscode.window.showInformationMessage('JSON sorted alphabetically');
+    });
+
+    context.subscriptions.push(sortCommand);
+
     // Register command to display clipboard data (JSON, TSV, or CSV)
     const clipboardCommand = vscode.commands.registerCommand('to-json-visual-from-clipboard', async () => {
         try {
@@ -594,6 +666,28 @@ function splitDelimitedLine(line: string, delimiter: string): string[] {
 
     result.push(current);
     return result;
+}
+
+function sortJsonValue(value: any): any {
+    if (Array.isArray(value)) {
+        return value.map(sortJsonValue);
+    }
+
+    if (value && typeof value === 'object') {
+        const sortedKeys = Object.keys(value).sort((a, b) =>
+            a.localeCompare(b, undefined, { sensitivity: 'base' })
+        );
+
+        const sortedObject: any = {};
+
+        for (const key of sortedKeys) {
+            sortedObject[key] = sortJsonValue(value[key]);
+        }
+
+        return sortedObject;
+    }
+
+    return value;
 }
 
 export function deactivate() { }
