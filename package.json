@@ -45,7 +45,7 @@
       },
       {
         "command": "jsonViewer.sortJson",
-        "title": "Sort JSON Alphabetically",
+        "title": "AlphaSort JSON",
         "icon": "$(sort-preference)"
       },
       {
