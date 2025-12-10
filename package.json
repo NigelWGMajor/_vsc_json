@@ -16,7 +16,18 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onDebugResolve:coreclr",
+    "onDebug",
+    "onCommand:jsonViewer.openViewer",
+    "onCommand:jsonViewer.exportHtml",
+    "onCommand:jsonViewer.sortJson",
+    "onCommand:to-json-visual-from-clipboard",
+    "onCommand:to-debug-dump-cs",
+    "onCommand:to-debug-dump-ts",
+    "onCommand:jsonViewer.visualizeAtBreakpoint",
+    "onCommand:jsonViewer.applyJsonDump"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "customEditors": [
@@ -49,8 +60,18 @@
         "icon": "$(sort-preference)"
       },
       {
+        "command": "jsonViewer.visualizeAtBreakpoint",
+        "title": "Json Visualizer: Visualize Selection at Breakpoint",
+        "icon": "$(debug-pause)"
+      },
+      {
+        "command": "jsonViewer.applyJsonDump",
+        "title": "Json Visualizer: Apply JSON Dump to Debugger",
+        "icon": "$(debug-step-over)"
+      },
+      {
         "command": "to-json-visual-from-clipboard",
-        "title": "Clipboard to Json Visualizer (JSON/TSV/CSV)"
+        "title": "Json Visualize from clipboard (JSON/TSV/CSV)"
       },
       {
         "command": "to-debug-dump-cs",
@@ -77,6 +98,11 @@
           "command": "jsonViewer.sortJson",
           "when": "resourceLangId == json || resourceLangId == jsonc",
           "group": "navigation"
+        },
+        {
+          "command": "jsonViewer.applyJsonDump",
+          "when": "resourceLangId == json",
+          "group": "navigation"
         }
       ],
       "commandPalette": [
@@ -91,6 +117,14 @@
         {
           "command": "jsonViewer.sortJson",
           "when": "resourceLangId == json || resourceLangId == jsonc"
+        },
+        {
+          "command": "jsonViewer.visualizeAtBreakpoint",
+          "when": "resourceLangId == csharp"
+        },
+        {
+          "command": "jsonViewer.applyJsonDump",
+          "when": "resourceLangId == json"
         },
         {
           "command": "to-json-visual-from-clipboard"
