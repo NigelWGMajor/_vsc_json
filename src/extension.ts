@@ -2,6 +2,16 @@ import * as vscode from 'vscode';
 import { JsonViewerEditorProvider } from './jsonViewerProvider';
 import * as path from 'path';
 
+type CoreClrStopInfo = {
+    sessionId: string;
+    threadId: number;
+    reason?: string;
+    frameId?: number;
+    sourcePath?: string;
+    line?: number;
+    column?: number;
+};
+
 /**
  * Get the default folder for saving files.
  * Priority: .data folder in workspace root > first workspace folder > current file directory
@@ -36,8 +46,111 @@ async function getDefaultSaveFolder(currentFileUri?: vscode.Uri): Promise<vscode
 export function activate(context: vscode.ExtensionContext) {
     console.log('JSON Viewer extension is now active');
 
+    // Consider stack frames within this line distance after the selection for auto dump
+    const CORE_CLR_AUTO_DUMP_LINE_WINDOW = 5;
+
     // Track the last stopped thread ID
     let lastStoppedThreadId: number | undefined;
+    let lastCoreClrStopInfo: CoreClrStopInfo | undefined;
+    let autoDumpInProgress = false;
+
+    function normalizePathForComparison(fsPath: string): string {
+        const normalized = path.normalize(fsPath);
+        return process.platform === 'win32' ? normalized.toLowerCase() : normalized;
+    }
+
+    async function handleCoreClrStoppedEvent(debugSession: vscode.DebugSession, threadId: number, reason?: string) {
+        try {
+            const stackTraceResponse = await debugSession.customRequest('stackTrace', {
+                threadId,
+                startFrame: 0,
+                levels: 1
+            });
+
+            const topFrame = stackTraceResponse?.stackFrames?.[0];
+            if (!topFrame) {
+                return;
+            }
+
+            lastCoreClrStopInfo = {
+                sessionId: debugSession.id,
+                threadId,
+                reason,
+                frameId: topFrame.id,
+                sourcePath: topFrame.source?.path,
+                line: topFrame.line,
+                column: topFrame.column
+            };
+
+            await maybeTriggerAutoDebugDump(debugSession, topFrame, reason);
+        } catch (error) {
+            console.log('Unable to inspect CoreCLR stack trace for auto dump', error);
+        }
+    }
+
+    async function maybeTriggerAutoDebugDump(debugSession: vscode.DebugSession, topFrame: any, reason?: string) {
+        const activeSession = vscode.debug.activeDebugSession;
+        if (!activeSession || activeSession.id !== debugSession.id) {
+            return;
+        }
+
+        const editor = vscode.window.activeTextEditor;
+        if (!editor || editor.document.languageId !== 'csharp') {
+            return;
+        }
+
+        const selection = editor.selection;
+        if (selection.isEmpty) {
+            return;
+        }
+
+        const selectedText = editor.document.getText(selection).trim();
+        if (!selectedText) {
+            return;
+        }
+
+        if (editor.document.uri.scheme !== 'file') {
+            return;
+        }
+
+        const frameSourcePath: string | undefined = topFrame?.source?.path;
+        if (!frameSourcePath) {
+            return;
+        }
+
+        const editorPath = normalizePathForComparison(editor.document.uri.fsPath);
+        const framePath = normalizePathForComparison(frameSourcePath);
+        if (editorPath !== framePath) {
+            return;
+        }
+
+        const zeroBasedFrameLine = typeof topFrame.line === 'number' ? topFrame.line - 1 : undefined;
+        if (typeof zeroBasedFrameLine !== 'number') {
+            return;
+        }
+
+        const selectionStartLine = selection.start.line;
+        const selectionEndLine = selection.end.line;
+        const maxEligibleLine = selectionEndLine + CORE_CLR_AUTO_DUMP_LINE_WINDOW;
+
+        if (zeroBasedFrameLine < selectionStartLine || zeroBasedFrameLine > maxEligibleLine) {
+            return;
+        }
+
+        if (autoDumpInProgress) {
+            return;
+        }
+
+        autoDumpInProgress = true;
+        try {
+            console.log(`Auto debug dump triggered for CoreCLR stop (${reason || 'stopped'}) at line ${zeroBasedFrameLine + 1}`);
+            await vscode.commands.executeCommand('to-debug-dump-cs');
+        } catch (error) {
+            console.log('Auto debug dump command failed', error);
+        } finally {
+            autoDumpInProgress = false;
+        }
+    }
 
     // Register debug adapter tracker to capture stopped events
     const trackerFactory = vscode.debug.registerDebugAdapterTrackerFactory('*', {
@@ -55,6 +168,37 @@ export function activate(context: vscode.ExtensionContext) {
     });
 
     context.subscriptions.push(trackerFactory);
+
+    // Track CoreCLR stop events to optionally auto-trigger serialization when near the selection
+    const coreClrTracker = vscode.debug.registerDebugAdapterTrackerFactory('coreclr', {
+        createDebugAdapterTracker(session: vscode.DebugSession) {
+            return {
+                onDidSendMessage: (message: any) => {
+                    if (!message || message.type !== 'event' || message.event !== 'stopped') {
+                        return;
+                    }
+
+                    const threadId = message.body?.threadId;
+                    if (typeof threadId !== 'number') {
+                        return;
+                    }
+
+                    const reason = message.body?.reason;
+                    lastStoppedThreadId = threadId;
+                    lastCoreClrStopInfo = {
+                        sessionId: session.id,
+                        threadId,
+                        reason
+                    };
+
+                    console.log(`CoreCLR debugger stopped (reason=${reason || 'unknown'}) on thread ${threadId}`);
+                    void handleCoreClrStoppedEvent(session, threadId, reason);
+                }
+            };
+        }
+    });
+
+    context.subscriptions.push(coreClrTracker);
 
     // Register the custom editor provider for JSON files
     const provider = new JsonViewerEditorProvider(context);
@@ -307,7 +451,12 @@ export function activate(context: vscode.ExtensionContext) {
                 frameId = (activeStackItem as any).frameId;
             }
 
-            // Method 2: Use tracked stopped thread ID
+            // Method 2: Use the last CoreCLR stop frame if available
+            if (!frameId && lastCoreClrStopInfo?.frameId && debugSession.id === lastCoreClrStopInfo.sessionId) {
+                frameId = lastCoreClrStopInfo.frameId;
+            }
+
+            // Method 3: Use tracked stopped thread ID
             if (!frameId && lastStoppedThreadId) {
                 const stackTrace = await debugSession.customRequest('stackTrace', {
                     threadId: lastStoppedThreadId
@@ -318,7 +467,7 @@ export function activate(context: vscode.ExtensionContext) {
                 }
             }
 
-            // Method 3: Request all threads and use the first one
+            // Method 4: Request all threads and use the first one
             if (!frameId) {
                 const threadsResponse = await debugSession.customRequest('threads');
 
