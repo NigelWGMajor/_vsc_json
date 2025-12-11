@@ -137,6 +137,7 @@ export function activate(context: vscode.ExtensionContext) {
     let autoDumpArmed = false;
     let pendingAutoDumpRequest: PendingAutoDumpRequest | undefined;
     const dumpMetadataByPath = new Map<string, DumpMetadata>();
+    let lastFocusedCodeEditor: vscode.TextEditor | undefined;
 
     function createSelectionContextFromRange(
         editor: vscode.TextEditor,
@@ -868,6 +869,13 @@ export function activate(context: vscode.ExtensionContext) {
     });
     context.subscriptions.push(debugTermination);
 
+    const editorFocusListener = vscode.window.onDidChangeActiveTextEditor(editor => {
+        if (editor && editor.document.languageId === 'csharp') {
+            lastFocusedCodeEditor = editor;
+        }
+    });
+    context.subscriptions.push(editorFocusListener);
+
     const visualizeAtBreakpointCommand = vscode.commands.registerCommand('jsonViewer.visualizeAtBreakpoint', async () => {
         const editor = vscode.window.activeTextEditor;
         if (!editor) {
@@ -1271,7 +1279,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(toDebugDump);
 
-    async function applyJsonDumpFromActiveDocument(): Promise<void> {
+    async function applyJsonDumpFromActiveDocument(targetOverride?: string, skipStepAfterInject = false): Promise<void> {
         const editor = vscode.window.activeTextEditor;
         if (!editor) {
             vscode.window.showErrorMessage('No active editor found');
@@ -1289,8 +1297,10 @@ export function activate(context: vscode.ExtensionContext) {
             return;
         }
 
-        const metadata = getDumpMetadataForDocument(editor.document.uri);
-        if (!metadata) {
+        const metadata = targetOverride
+            ? { expression: targetOverride }
+            : getDumpMetadataForDocument(editor.document.uri);
+        if (!metadata || !metadata.expression) {
             vscode.window.showErrorMessage('Could not determine the target expression for this JSON dump.');
             return;
         }
@@ -1319,6 +1329,13 @@ export function activate(context: vscode.ExtensionContext) {
             });
 
             vscode.window.showInformationMessage(`Applied JSON changes to ${targetExpression}.`);
+            if (!skipStepAfterInject && typeof lastStoppedThreadId === 'number') {
+                try {
+                    await debugSession.customRequest('stepIn', { threadId: lastStoppedThreadId });
+                } catch (stepError) {
+                    console.log('Step after JSON injection failed', stepError);
+                }
+            }
         } catch (error: any) {
             const message = error?.message || error?.toString() || 'Unknown error';
             vscode.window.showErrorMessage(`Failed to apply JSON changes: ${message}`);
@@ -1329,6 +1346,42 @@ export function activate(context: vscode.ExtensionContext) {
         await applyJsonDumpFromActiveDocument();
     });
     context.subscriptions.push(deserializeJsonDumpCommand);
+
+    const injectJsonIntoSelectionCommand = vscode.commands.registerCommand('jsonViewer.injectJsonDumpIntoSelection', async () => {
+        const jsonEditor = vscode.window.activeTextEditor;
+        if (!jsonEditor || jsonEditor.document.languageId !== 'json') {
+            vscode.window.showErrorMessage('Active document must be a JSON dump to inject.');
+            return;
+        }
+
+        let selectedExpression = '';
+
+        const candidateCodeEditor = (() => {
+            if (lastFocusedCodeEditor && !lastFocusedCodeEditor.document.isClosed) {
+                return lastFocusedCodeEditor;
+            }
+            return vscode.window.visibleTextEditors.find(e => e.document.languageId === 'csharp');
+        })();
+
+        if (candidateCodeEditor && !candidateCodeEditor.selection.isEmpty) {
+            selectedExpression = candidateCodeEditor.document.getText(candidateCodeEditor.selection).trim();
+        }
+
+        if (!selectedExpression) {
+            selectedExpression = (await vscode.window.showInputBox({
+                prompt: 'Enter the debugger expression to populate',
+                placeHolder: 'variableName.Property'
+            }))?.trim() || '';
+        }
+
+        if (!selectedExpression) {
+            vscode.window.showErrorMessage('Select or enter a variable/expression to inject into.');
+            return;
+        }
+
+        await applyJsonDumpFromActiveDocument(selectedExpression, true);
+    });
+    context.subscriptions.push(injectJsonIntoSelectionCommand);
 
     // Register command to dump JavaScript/TypeScript debug variable to JSON
     const toDebugDumpTs = vscode.commands.registerCommand('to-debug-dump-ts', async () => {

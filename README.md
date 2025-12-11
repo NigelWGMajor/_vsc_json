@@ -33,9 +33,11 @@ Typescript and Javascript should work with `to-debug-dump-js`.
 The command `Json Visualizer: Visualize at Breakpoints` allows you to automatically dump json when encountering a breakpoint on an assignment line or a return which returns a variable.
 It only works on conditional breakpoints where the condition is "99==99".
 If the breakpoint is on a line like `var x = await DoY(...` the code will break at the following line instead, which allows the variabe to be populated. 
-If the breakpoint is on a line like `return x` it will break on the line, and dump the data. This alows the data to be modified, then the `Json Visualizer: Inject into degugger` command can be used to return the modified data for return.
+If the breakpoint is on a line like `return x` it will break on the line, and dump the data. This alows the data to be modified, then the `Json Visualizer: Inject into degugger` command can be used to return the modified data for return (there is also an icon button at the top of the json file to do this).
 the command `Json Visualizer: Stop Visualizing from Breakpoints` can be used to stop this. 
 Note: capture scenarios other than those mentioned above are not supported: the automation needs to be able to recognize the variable to capture from the simple pattern.
+
+The `Json Visualizer: Inject into Selected variable` toolbar command can be used in a similar manner to populate a named variable while paused at a breakpoint. This allows `to-debug...` captures to be reinjected later. The json file needs to be focused at the time.
 
 ## Development
 

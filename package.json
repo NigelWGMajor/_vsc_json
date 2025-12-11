@@ -27,6 +27,7 @@
     "onCommand:to-debug-dump-ts",
     "onCommand:jsonViewer.visualizeAtBreakpoint",
     "onCommand:jsonViewer.stopVisualizingAtBreakpoint",
+    "onCommand:jsonViewer.injectJsonDumpIntoSelection",
     "onCommand:jsonViewer.deserializeJsonDump"
   ],
   "main": "./out/extension.js",
@@ -71,6 +72,11 @@
         "icon": "$(debug-stop)"
       },
       {
+        "command": "jsonViewer.injectJsonDumpIntoSelection",
+        "title": "Json Visualizer: Inject into Selected Variable",
+        "icon": "$(debug-step-into)"
+      },
+      {
         "command": "jsonViewer.deserializeJsonDump",
         "title": "Json Visualizer: Inject into Debugger",
         "icon": "$(debug-step-into)"
@@ -106,6 +112,11 @@
           "group": "navigation"
         },
         {
+          "command": "jsonViewer.injectJsonDumpIntoSelection",
+          "when": "resourceLangId == json",
+          "group": "navigation"
+        },
+        {
           "command": "jsonViewer.deserializeJsonDump",
           "when": "resourceLangId == json",
           "group": "navigation"
@@ -131,6 +142,10 @@
         {
           "command": "jsonViewer.stopVisualizingAtBreakpoint",
           "when": "resourceLangId == csharp"
+        },
+        {
+          "command": "jsonViewer.injectJsonDumpIntoSelection",
+          "when": "resourceLangId == json"
         },
         {
           "command": "jsonViewer.deserializeJsonDump",
