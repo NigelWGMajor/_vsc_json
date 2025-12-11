@@ -1279,7 +1279,12 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(toDebugDump);
 
-    async function applyJsonDumpFromActiveDocument(targetOverride?: string, skipStepAfterInject = false): Promise<void> {
+    type ApplyJsonOptions = {
+        skipStepAfterInject?: boolean;
+        forceReassignWithNewInstance?: boolean;
+    };
+
+    async function applyJsonDumpFromActiveDocument(targetOverride?: string, options?: ApplyJsonOptions): Promise<void> {
         const editor = vscode.window.activeTextEditor;
         if (!editor) {
             vscode.window.showErrorMessage('No active editor found');
@@ -1319,9 +1324,21 @@ export function activate(context: vscode.ExtensionContext) {
 
         const jsonLiteral = toCSharpStringLiteral(jsonContent);
         const targetExpression = metadata.expression;
-        const evalExpression = `Newtonsoft.Json.JsonConvert.PopulateObject(${jsonLiteral}, ${targetExpression});`;
+        const skipStepAfterInject = options?.skipStepAfterInject === true;
+        const forceReassignWithNewInstance = options?.forceReassignWithNewInstance === true;
+        const inlineTypeAccessor = `(((object)(${targetExpression}))?.GetType() ?? typeof(object))`;
+
+        const evalExpression = forceReassignWithNewInstance
+            ? `${targetExpression} = (dynamic)(Newtonsoft.Json.JsonConvert.DeserializeObject(${jsonLiteral}, ${inlineTypeAccessor}));`
+            // Retain PopulateObject path for future cases where in-place mutation is preferable.
+            : `Newtonsoft.Json.JsonConvert.PopulateObject(${jsonLiteral}, ${targetExpression});`;
 
         try {
+            const debugConsole = vscode.debug.activeDebugConsole;
+            if (debugConsole) {
+                debugConsole.appendLine(evalExpression);
+            }
+
             await debugSession.customRequest('evaluate', {
                 expression: evalExpression,
                 frameId,
@@ -1343,7 +1360,10 @@ export function activate(context: vscode.ExtensionContext) {
     }
 
     const deserializeJsonDumpCommand = vscode.commands.registerCommand('jsonViewer.deserializeJsonDump', async () => {
-        await applyJsonDumpFromActiveDocument();
+        await applyJsonDumpFromActiveDocument(undefined, {
+            skipStepAfterInject: false,
+            forceReassignWithNewInstance: true
+        });
     });
     context.subscriptions.push(deserializeJsonDumpCommand);
 
@@ -1379,7 +1399,10 @@ export function activate(context: vscode.ExtensionContext) {
             return;
         }
 
-        await applyJsonDumpFromActiveDocument(selectedExpression, true);
+        await applyJsonDumpFromActiveDocument(selectedExpression, {
+            skipStepAfterInject: true,
+            forceReassignWithNewInstance: true
+        });
     });
     context.subscriptions.push(injectJsonIntoSelectionCommand);
 
