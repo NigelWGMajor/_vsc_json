@@ -100,6 +100,9 @@ export class JsonViewerEditorProvider implements vscode.CustomReadonlyEditorProv
                 case 'refresh':
                     await this.handleRefresh(document.uri, webviewPanel, message.theme, message.redactedPaths);
                     break;
+                case 'updateWorkingData':
+                    await this.handleUpdateWorkingData(document.uri, message.updatedJson);
+                    break;
             }
         });
 
@@ -272,6 +275,15 @@ export class JsonViewerEditorProvider implements vscode.CustomReadonlyEditorProv
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#039;');
+    }
+
+    private async handleUpdateWorkingData(uri: vscode.Uri, payload: any): Promise<void> {
+        try {
+            const jsonData = typeof payload === 'string' ? JSON.parse(payload) : payload;
+            this.workingJsonCache.set(uri.toString(), jsonData);
+        } catch (error) {
+            console.error('Failed to update working JSON data', error);
+        }
     }
 
     private async handleExport(uri: vscode.Uri, theme?: string, redactedPaths?: string[]): Promise<void> {

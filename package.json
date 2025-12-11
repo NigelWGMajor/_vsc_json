@@ -49,7 +49,7 @@
       {
         "command": "jsonViewer.openViewer",
         "title": "Json Visualizer",
-        "icon": "media/edit-json.svg"
+        "icon": "media/sidebar-icon.svg"
       },
       {
         "command": "jsonViewer.exportHtml",

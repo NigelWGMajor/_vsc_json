@@ -40,6 +40,8 @@ function loadToolbarIcon(fileName: string): string {
 
 export function generateHtmlContent(jsonData: any, fileName: string, theme?: string, wideView?: boolean): string {
     const renderedContent = renderJson(jsonData, fileName);
+    const jsonString = JSON.stringify(jsonData ?? null) ?? 'null';
+    const jsonPayload = escapeForScriptContent(jsonString).replace(/<\/script>/gi, '<\\/script>');
     const classes = [];
     if (theme === 'light') classes.push('light-mode');
     if (wideView) classes.push('wide-view', 'wide-view-active');
@@ -74,6 +76,9 @@ export function generateHtmlContent(jsonData: any, fileName: string, theme?: str
                 <button class="toolbar-btn" id="hideUnderscoreBtn" onclick="toggleHideUnderscore()" title="Hide rows starting with underscore">
                     ${getHideUnderscoreIcon()}
                 </button>
+                <button class="toolbar-btn" id="editModeBtn" onclick="toggleEditMode()" title="Enter Edit Mode" style="display:none;">
+                    ${getEditModeIcon()}
+                </button>
                 <button class="toolbar-btn" id="wideViewBtn" onclick="toggleWideView()" title="Toggle Wide View (Tabular Data)" style="display:none;">
                     ${getWideIcon()}
                 </button>
@@ -102,6 +107,7 @@ export function generateHtmlContent(jsonData: any, fileName: string, theme?: str
         <div class="context-menu-item" onclick="copyAllValues()">Copy All Values</div>
         <div class="context-menu-item danger" onclick="redactSelectedRow()">Redact This Row</div>
     </div>
+    <script id="jsonData" type="application/json">${jsonPayload}</script>
     <script>${getEmbeddedJavaScript()}</script>
 </body>
 </html>`;
@@ -114,11 +120,11 @@ function renderJson(data: any, name: string = 'root', level: number = 0, path: s
     console.log(`renderJson: name="${name}", path="${path}", currentPath="${currentPath}", isRoot=${isRoot}`);
 
     if (data === null) {
-        return renderRow(name, '<span class="value-null">null</span>', level, isRoot, currentPath);
+        return renderRow(name, renderPrimitive(data, 'null'), level, isRoot, currentPath);
     }
 
     if (data === undefined) {
-        return renderRow(name, '<span class="value-undefined">undefined</span>', level, isRoot, currentPath);
+        return renderRow(name, renderPrimitive(data, 'undefined'), level, isRoot, currentPath);
     }
 
     const type = typeof data;
@@ -138,8 +144,8 @@ function renderJson(data: any, name: string = 'root', level: number = 0, path: s
     return renderRow(name, String(data), level, isRoot, currentPath);
 }
 
-function renderPrimitive(value: any): string {
-    const type = typeof value;
+function renderPrimitive(value: any, forcedType?: string): string {
+    const type = forcedType ?? typeof value;
     const strValue = String(value);
     const truncated = truncateValue(strValue);
     const escapedFullValue = escapeHtml(strValue);
@@ -148,6 +154,11 @@ function renderPrimitive(value: any): string {
 
     if (truncated !== strValue) {
         attributes.push(`title="${escapedFullValue}"`);
+    }
+
+    if (type === 'string' || type === 'number' || type === 'boolean' || type === 'null') {
+        attributes.push(`data-editable="true"`);
+        attributes.push(`data-value-type="${type}"`);
     }
 
     return `<span ${attributes.join(' ')}>${escapedDisplayValue}</span>`;
@@ -287,6 +298,13 @@ function escapeHtml(text: string): string {
         .replace(/'/g, '&#039;');
 }
 
+function escapeForScriptContent(text: string): string {
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
 function getSearchIcon(): string {
     return loadToolbarIcon('search.svg');
 }
@@ -317,6 +335,10 @@ function getSaveJsonIcon(): string {
 
 function getHideUnderscoreIcon(): string {
     return loadToolbarIcon('hide_underscore_rows.svg');
+}
+
+function getEditModeIcon(): string {
+    return loadToolbarIcon('edit-json.svg');
 }
 
 function getEmbeddedCss(): string {
@@ -456,6 +478,84 @@ body {
 
 .toolbar-btn #themeIcon svg.icon {
     display: block;
+}
+
+.toolbar-btn.active {
+    box-shadow: 0 0 0 2px var(--button-hover);
+}
+
+body.edit-mode .value[data-editable="true"] {
+    cursor: text;
+    border-bottom: 1px dashed var(--text-secondary);
+}
+
+.row.edited .name,
+.row.edited .value {
+    background: rgba(255, 166, 0, 0.12);
+}
+
+.row.deleted .name,
+.row.deleted .value {
+    text-decoration: line-through;
+    opacity: 0.65;
+}
+
+.value-editor {
+    position: fixed;
+    z-index: 1000;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 12px;
+    width: 280px;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.35);
+}
+
+.value-editor textarea,
+.value-editor input,
+.value-editor select {
+    width: 100%;
+    padding: 6px;
+    font-size: 13px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    margin-bottom: 8px;
+}
+
+.value-editor-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.value-editor-actions button {
+    padding: 6px 10px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    background: var(--button-bg);
+    color: white;
+}
+
+.value-editor-actions button.danger {
+    background: var(--button-bg);
+    color: #ff7070;
+    border: 1px solid #ff7070;
+}
+
+.value-editor-actions button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.value-editor-error {
+    color: #ff7070;
+    font-size: 12px;
+    min-height: 16px;
+    margin-bottom: 4px;
 }
 
 .content {
@@ -866,11 +966,42 @@ console.log('=== JSON Viewer JavaScript Loaded ===');
 // Global state
 let caseMode = 'original'; // 'original', 'pascal', 'camel'
 let vscodeApi = null;
+let originalJsonSnapshot = null;
+let workingJsonData = null;
+let editModeEnabled = false;
+let activeValueEditor = null;
+let activeEditContext = null;
+let pendingSyncTimer = null;
+const htmlEntityDecoder = document.createElement('textarea');
+
+function decodeHtmlEntities(value) {
+    if (typeof value !== 'string') {
+        return value ?? '';
+    }
+    htmlEntityDecoder.innerHTML = value;
+    return htmlEntityDecoder.value;
+}
 
 // Initialize VSCode API (can only be called once)
 (function initVSCodeApi() {
     if (typeof acquireVsCodeApi !== 'undefined') {
         vscodeApi = acquireVsCodeApi();
+    }
+})();
+
+(function initWorkingData() {
+    const payload = document.getElementById('jsonData');
+    if (!payload) {
+        return;
+    }
+
+    try {
+        originalJsonSnapshot = JSON.parse(payload.textContent || 'null');
+        workingJsonData = originalJsonSnapshot
+            ? JSON.parse(JSON.stringify(originalJsonSnapshot))
+            : null;
+    } catch (error) {
+        console.error('Failed to parse embedded JSON payload', error);
     }
 })();
 
@@ -934,6 +1065,45 @@ function toggleHideUnderscore() {
     }
 })();
 
+function toggleEditMode() {
+    if (!vscodeApi) {
+        alert('Editing is only available inside VS Code.');
+        return;
+    }
+
+    if (!workingJsonData) {
+        alert('Unable to initialize editable JSON copy.');
+        return;
+    }
+
+    const body = document.body;
+    if (body.classList.contains('edit-mode')) {
+        body.classList.remove('edit-mode');
+        editModeEnabled = false;
+        closeActiveEditor();
+    } else {
+        body.classList.add('edit-mode');
+        editModeEnabled = true;
+    }
+
+    updateEditModeButton();
+}
+
+function updateEditModeButton() {
+    const editBtn = document.getElementById('editModeBtn');
+    if (!editBtn) {
+        return;
+    }
+
+    if (document.body.classList.contains('edit-mode')) {
+        editBtn.classList.add('active');
+        editBtn.title = 'Exit Edit Mode';
+    } else {
+        editBtn.classList.remove('active');
+        editBtn.title = 'Enter Edit Mode';
+    }
+}
+
 // Hide browser button if not in VSCode
 (function hideBrowserBtnIfNotInVSCode() {
     if (!vscodeApi) {
@@ -943,6 +1113,21 @@ function toggleHideUnderscore() {
         }
     }
 })();
+
+(function configureEditButton() {
+    const editBtn = document.getElementById('editModeBtn');
+    if (!editBtn) {
+        return;
+    }
+
+    if (vscodeApi) {
+        editBtn.style.display = 'flex';
+    } else {
+        editBtn.style.display = 'none';
+    }
+})();
+
+updateEditModeButton();
 
 // Detect tabular data and show wide view button (only in VSCode)
 (function detectTabularData() {
@@ -1668,6 +1853,395 @@ function nextInParentArray(element) {
     }
 }
 
+function openValueEditor(valueEl) {
+    if (!valueEl || !document.body.classList.contains('edit-mode')) {
+        return;
+    }
+
+    const rowEl = valueEl.closest('.row');
+    if (!rowEl) {
+        return;
+    }
+
+    const path = rowEl.dataset.path;
+    if (!path) {
+        return;
+    }
+
+    const type = valueEl.dataset.valueType || 'string';
+    const sourceValue = valueEl.getAttribute('data-full-value') ?? valueEl.textContent ?? '';
+    const fullValue = decodeHtmlEntities(sourceValue);
+
+    closeActiveEditor();
+
+    const editor = document.createElement('div');
+    editor.className = 'value-editor';
+
+    const errorEl = document.createElement('div');
+    errorEl.className = 'value-editor-error';
+    editor.appendChild(errorEl);
+
+    let inputEl;
+    if (type === 'boolean') {
+        const select = document.createElement('select');
+        const trueOption = document.createElement('option');
+        trueOption.value = 'true';
+        trueOption.textContent = 'true';
+        const falseOption = document.createElement('option');
+        falseOption.value = 'false';
+        falseOption.textContent = 'false';
+        select.appendChild(trueOption);
+        select.appendChild(falseOption);
+        select.value = (fullValue.trim().toLowerCase() === 'true') ? 'true' : 'false';
+        inputEl = select;
+    } else if (type === 'number') {
+        const numberInput = document.createElement('input');
+        numberInput.type = 'number';
+        numberInput.value = fullValue;
+        inputEl = numberInput;
+    } else {
+        const textArea = document.createElement('textarea');
+        textArea.rows = 4;
+        textArea.value = fullValue;
+        inputEl = textArea;
+    }
+
+    editor.appendChild(inputEl);
+
+    const actions = document.createElement('div');
+    actions.className = 'value-editor-actions';
+
+    const saveBtn = document.createElement('button');
+    saveBtn.textContent = 'Save';
+
+    const pasteBtn = document.createElement('button');
+    pasteBtn.textContent = 'Paste';
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.textContent = 'Delete';
+    deleteBtn.classList.add('danger');
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+
+    actions.appendChild(saveBtn);
+    actions.appendChild(pasteBtn);
+    actions.appendChild(deleteBtn);
+    actions.appendChild(cancelBtn);
+    editor.appendChild(actions);
+
+    document.body.appendChild(editor);
+
+    const rect = valueEl.getBoundingClientRect();
+    const editorRect = editor.getBoundingClientRect();
+    const preferredLeft = Math.min(
+        rect.left + window.scrollX,
+        window.scrollX + window.innerWidth - editorRect.width - 16
+    );
+    const preferredTop = Math.min(
+        rect.bottom + 8 + window.scrollY,
+        window.scrollY + window.innerHeight - editorRect.height - 16
+    );
+
+    editor.style.left = Math.max(8, preferredLeft) + 'px';
+    editor.style.top = Math.max(8, preferredTop) + 'px';
+
+    activeValueEditor = editor;
+    activeEditContext = {
+        path,
+        type,
+        valueEl,
+        rowEl,
+        inputEl,
+        errorEl
+    };
+
+    const handleKeyDown = (event) => {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            commitActiveEditor('save');
+        } else if (event.key === 'Tab') {
+            event.preventDefault();
+            const nextTarget = findRelativeEditableValue(valueEl, event.shiftKey ? -1 : 1);
+            commitActiveEditor('save', { focusTarget: nextTarget });
+        }
+    };
+    inputEl.addEventListener('keydown', handleKeyDown);
+
+    saveBtn.addEventListener('click', () => commitActiveEditor('save'));
+    pasteBtn.addEventListener('click', async () => {
+        if (!navigator.clipboard || !navigator.clipboard.readText) {
+            setEditorError('Clipboard not available');
+            return;
+        }
+        try {
+            const text = await navigator.clipboard.readText();
+            const ctx = activeEditContext;
+            if (!ctx) {
+                return;
+            }
+            if (ctx.type === 'boolean') {
+                const normalized = text.trim().toLowerCase();
+                if (normalized === 'true' || normalized === 'false') {
+                    inputEl.value = normalized;
+                    setEditorError('');
+                } else {
+                    setEditorError('Clipboard value not boolean');
+                }
+            } else {
+                inputEl.value = text;
+                setEditorError('');
+            }
+        } catch (error) {
+            console.error('Clipboard read failed', error);
+            setEditorError('Clipboard read failed');
+        }
+    });
+    deleteBtn.addEventListener('click', () => commitActiveEditor('delete'));
+    cancelBtn.addEventListener('click', () => commitActiveEditor('cancel'));
+
+    inputEl.focus();
+    if (typeof inputEl.select === 'function' && type !== 'boolean') {
+        inputEl.select();
+    }
+}
+
+function closeActiveEditor() {
+    if (activeValueEditor) {
+        activeValueEditor.remove();
+    }
+    activeValueEditor = null;
+    activeEditContext = null;
+}
+
+function findRelativeEditableValue(currentValueEl, delta) {
+    const editableValues = Array.from(document.querySelectorAll('.row .value [data-editable="true"]'));
+    if (editableValues.length === 0) {
+        return null;
+    }
+
+    const currentIndex = editableValues.indexOf(currentValueEl);
+    if (currentIndex === -1) {
+        return editableValues[0];
+    }
+
+    let nextIndex = currentIndex + delta;
+    if (nextIndex < 0) {
+        nextIndex = editableValues.length - 1;
+    } else if (nextIndex >= editableValues.length) {
+        nextIndex = 0;
+    }
+    return editableValues[nextIndex];
+}
+
+function commitActiveEditor(action, options) {
+    if (!activeEditContext) {
+        return;
+    }
+
+    if (action === 'cancel') {
+        closeActiveEditor();
+        return;
+    }
+
+    if (action === 'delete') {
+        if (applyDeletionForContext(activeEditContext)) {
+            closeActiveEditor();
+        }
+        return;
+    }
+
+    const newValue = readEditorValue(activeEditContext);
+    if (typeof newValue === 'undefined') {
+        return;
+    }
+
+    if (!setValueAtPath(workingJsonData, activeEditContext.path, newValue)) {
+        setEditorError('Unable to update this field.');
+        return;
+    }
+
+    updateValueElement(activeEditContext.valueEl, newValue, activeEditContext.type);
+    activeEditContext.rowEl.classList.remove('deleted');
+    activeEditContext.rowEl.classList.add('edited');
+
+    setEditorError('');
+    scheduleWorkingCopySync();
+    const focusTarget = options?.focusTarget;
+    closeActiveEditor();
+
+    if (focusTarget && document.body.classList.contains('edit-mode')) {
+        openValueEditor(focusTarget);
+    }
+}
+
+function readEditorValue(context) {
+    if (!context || !context.inputEl) {
+        return undefined;
+    }
+
+    if (context.type === 'boolean') {
+        setEditorError('');
+        return context.inputEl.value === 'true';
+    }
+
+    if (context.type === 'number') {
+        const raw = context.inputEl.value.trim();
+        const numberValue = Number(raw);
+        if (raw === '' || Number.isNaN(numberValue)) {
+            setEditorError('Enter a valid number.');
+            return undefined;
+        }
+
+        setEditorError('');
+        return numberValue;
+    }
+
+    setEditorError('');
+    return context.inputEl.value;
+}
+
+function applyDeletionForContext(context) {
+    if (!setValueAtPath(workingJsonData, context.path, null)) {
+        setEditorError('Unable to delete this value.');
+        return false;
+    }
+
+    updateValueElement(context.valueEl, null, 'null');
+    context.rowEl.classList.add('edited');
+    context.rowEl.classList.add('deleted');
+    setEditorError('');
+    scheduleWorkingCopySync();
+    return true;
+}
+
+function setEditorError(message) {
+    if (activeEditContext && activeEditContext.errorEl) {
+        activeEditContext.errorEl.textContent = message || '';
+    }
+}
+
+function updateValueElement(valueEl, newValue, typeHint) {
+    if (!valueEl) {
+        return;
+    }
+
+    let displayType;
+    if (newValue === null) {
+        displayType = 'null';
+    } else if (typeHint === 'null') {
+        displayType = typeof newValue;
+    } else {
+        displayType = typeHint || typeof newValue;
+    }
+
+    let displayValue = '';
+    if (displayType === 'string') {
+        displayValue = newValue ?? '';
+    } else if (displayType === 'number' || displayType === 'boolean') {
+        displayValue = String(newValue);
+    } else if (displayType === 'null') {
+        displayValue = 'null';
+    } else {
+        displayValue = String(newValue ?? '');
+    }
+
+    valueEl.textContent = displayValue;
+    valueEl.dataset.fullValue = displayValue;
+    valueEl.dataset.valueType = displayType;
+
+    valueEl.classList.remove('value-string', 'value-number', 'value-boolean', 'value-null', 'value-undefined');
+    valueEl.classList.add('value-' + displayType);
+    valueEl.dataset.editable = 'true';
+}
+
+function scheduleWorkingCopySync() {
+    if (!vscodeApi || !workingJsonData) {
+        return;
+    }
+
+    if (pendingSyncTimer) {
+        clearTimeout(pendingSyncTimer);
+    }
+
+    pendingSyncTimer = setTimeout(() => {
+        pendingSyncTimer = null;
+        try {
+            vscodeApi.postMessage({
+                command: 'updateWorkingData',
+                updatedJson: JSON.stringify(workingJsonData)
+            });
+        } catch (error) {
+            console.error('Failed to sync working JSON data', error);
+        }
+    }, 300);
+}
+
+function setValueAtPath(target, path, newValue) {
+    if (!target || typeof target !== 'object') {
+        return false;
+    }
+
+    const segments = parsePathSegments(path);
+    if (segments.length === 0) {
+        return false;
+    }
+
+    let current = target;
+    for (let i = 0; i < segments.length - 1; i++) {
+        const segment = segments[i];
+        if (segment.type === 'property') {
+            if (current && typeof current === 'object' && segment.key in current) {
+                current = current[segment.key];
+            } else {
+                return false;
+            }
+        } else if (segment.type === 'index') {
+            if (Array.isArray(current) && segment.index < current.length) {
+                current = current[segment.index];
+            } else {
+                return false;
+            }
+        }
+    }
+
+    const last = segments[segments.length - 1];
+    if (last.type === 'property') {
+        if (!current || typeof current !== 'object') {
+            return false;
+        }
+        current[last.key] = newValue;
+        return true;
+    }
+
+    if (!Array.isArray(current) || last.index >= current.length) {
+        return false;
+    }
+
+    current[last.index] = newValue;
+    return true;
+}
+
+function parsePathSegments(path) {
+    if (!path) {
+        return [];
+    }
+
+    const segments = [];
+    const regex = /([^.\\[\\]]+)|\\[(\\d+)\\]/g;
+    let match;
+
+    while ((match = regex.exec(path)) !== null) {
+        if (match[1]) {
+            segments.push({ type: 'property', key: match[1] });
+        } else if (match[2]) {
+            segments.push({ type: 'index', index: parseInt(match[2], 10) });
+        }
+    }
+
+    return segments;
+}
+
 // Initialize redaction handlers - can be called multiple times
 function initializeRedactionHandlers() {
     console.log('Initializing redaction handlers');
@@ -1891,6 +2465,40 @@ document.addEventListener('keydown', function(e) {
         if (searchContainer && searchContainer.style.display !== 'none') {
             closeSearch();
         }
+    }
+});
+
+document.addEventListener('click', function(event) {
+    if (!document.body.classList.contains('edit-mode')) {
+        if (activeValueEditor && !event.target.closest('.value-editor')) {
+            closeActiveEditor();
+        }
+        return;
+    }
+
+    const editorEl = event.target.closest('.value-editor');
+    if (editorEl) {
+        return;
+    }
+
+    const valueEl = event.target.closest('[data-editable="true"]');
+    if (valueEl) {
+        event.preventDefault();
+        event.stopPropagation();
+        openValueEditor(valueEl);
+    } else if (activeValueEditor) {
+        closeActiveEditor();
+    }
+}, true);
+
+document.addEventListener('keydown', function(event) {
+    if (!document.body.classList.contains('edit-mode')) {
+        return;
+    }
+
+    if (event.key === 'Escape' && activeValueEditor) {
+        event.preventDefault();
+        closeActiveEditor();
     }
 });
 `;
