@@ -1,3 +1,43 @@
+import * as fs from 'fs';
+import * as path from 'path';
+
+const toolbarIconCache = new Map<string, string>();
+const toolbarIconRoot = path.join(__dirname, '..', 'media');
+
+function loadToolbarIcon(fileName: string): string {
+    if (toolbarIconCache.has(fileName)) {
+        return toolbarIconCache.get(fileName)!;
+    }
+
+    try {
+        const rawContent = fs.readFileSync(path.join(toolbarIconRoot, fileName), 'utf8').trim();
+        const normalized = rawContent.replace(/<svg([^>]+)>/, (_match, attrs) => {
+            let nextAttrs = attrs;
+
+            const upsertAttr = (attr: string, value: string) => {
+                const attrRegex = new RegExp(`${attr}="[^"]*"`, 'i');
+                if (attrRegex.test(nextAttrs)) {
+                    nextAttrs = nextAttrs.replace(attrRegex, `${attr}="${value}"`);
+                } else {
+                    nextAttrs += ` ${attr}="${value}"`;
+                }
+            };
+
+            upsertAttr('class', 'icon');
+            upsertAttr('width', '12');
+            upsertAttr('height', '12');
+
+            return `<svg${nextAttrs}>`;
+        });
+
+        toolbarIconCache.set(fileName, normalized);
+        return normalized;
+    } catch (error) {
+        console.error(`Failed to load toolbar icon ${fileName}:`, error);
+        return '';
+    }
+}
+
 export function generateHtmlContent(jsonData: any, fileName: string, theme?: string, wideView?: boolean): string {
     const renderedContent = renderJson(jsonData, fileName);
     const classes = [];
@@ -25,9 +65,6 @@ export function generateHtmlContent(jsonData: any, fileName: string, theme?: str
                 <button class="toolbar-btn" onclick="toggleTheme()" title="Toggle Light/Dark Mode">
                     <span id="themeIcon">${getLightDarkIcon()}</span>
                 </button>
-                <button class="toolbar-btn" onclick="exportToHtml()" title="Export to HTML File">
-                    ${getSaveHtmlIcon()}
-                </button>
                 <button class="toolbar-btn" id="browserBtn" onclick="viewInBrowser()" title="View in Browser">
                     ${getToBrowserIcon()}
                 </button>
@@ -39,6 +76,9 @@ export function generateHtmlContent(jsonData: any, fileName: string, theme?: str
                 </button>
                 <button class="toolbar-btn" id="wideViewBtn" onclick="toggleWideView()" title="Toggle Wide View (Tabular Data)" style="display:none;">
                     ${getWideIcon()}
+                </button>
+                <button class="toolbar-btn" onclick="exportToHtml()" title="Export to HTML File">
+                    ${getSaveHtmlIcon()}
                 </button>
                 <button class="toolbar-btn" id="exportJsonBtn" onclick="exportRedactedJson()" title="Export JSON">
                     ${getSaveJsonIcon()}
@@ -248,122 +288,35 @@ function escapeHtml(text: string): string {
 }
 
 function getSearchIcon(): string {
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="12" height="12" class="icon">
-  <circle cx="13" cy="13" r="8" fill="none" stroke="currentColor" stroke-width="2"/>
-  <path d="M 19 19 L 27 27" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>`;
+    return loadToolbarIcon('search.svg');
 }
 
 function getLightDarkIcon(): string {
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="12" height="12" class="icon">
-  <path d="M 3 16 A 12.500632743066973 12.500632743066973 0 0 0 28 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 3 16 A 12.502070584163558 12.502070584163558 0 0 1 28 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 14 5 L 14 27" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 11 6 L 11 26" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 9 7 L 9 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 7 9 L 7 23" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 5 12 L 5 20" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>`;
+    return loadToolbarIcon('light-dark.svg');
 }
 
 function getSaveHtmlIcon(): string {
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="12" height="12" class="icon">
-  <path d="M 15 2 L 15 22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 15 22 L 22 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 16 23 L 8 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 26 15 L 29 15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 29 15 L 29 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 29 28 L 3 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 3 28 L 3 15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 3 15 L 6 15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 9 15 L 15 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 23 15 L 21 17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 17 2 L 17 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 15 2 L 17 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 8 16 L 9 15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 16 23 L 24 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 23 15 L 24 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>`;
+    return loadToolbarIcon('save-html.svg');
 }
 
 function getToBrowserIcon(): string {
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="12" height="12" class="icon">
-  <path d="M 4 9 L 27 9" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 4 21 L 27 21" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 3 15 A 12.500088185001491 12.500088185001491 0 0 0 28 15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 3 15 A 12.502551020408163 12.502551020408163 0 0 1 28 15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 28 15 L 28 15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 15.25 3 Q 2.125 15 15.25 27" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 15 28 Q 28.625 15.0625 15.5 2.5625" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 15.5625 2.75 L 15 28" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 3 15 L 28 15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>`;
+    return loadToolbarIcon('to-browser.svg');
 }
 
 function getToggleCaseIcon(): string {
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="12" height="12" class="icon">
-  <path d="M 18 12 Q 25.125 8.4375 24.75 15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 25.6875 26 Q 24.125 21.3125 24.6875 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 23.75 17.6875 Q 17.4375 13.5 17.75 20.6875" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 24.8125 23.125 Q 18.1875 27.375 17.8125 21.125" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 23 13 L 24 13" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 16 26 L 10 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 10 5 L 5 26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 7 20 L 14 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 2 30 L 30 30" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 30 30 L 30 2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 30 2 L 2 2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 2 2 L 2 30" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>`;
+    return loadToolbarIcon('toggle-case.svg');
 }
 
 function getWideIcon(): string {
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="12" height="12" class="icon">
-  <path d="M 6 7 L 1 17" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 1 17 L 6 27" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 25 7 L 30 17" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 30 17 L 25 27" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 25 27 L 25 22" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 25 22 L 6 22" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 6 22 L 6 27" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 6 7 L 6 11" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 6 11 L 25 11" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 25 11 L 25 7" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>`;
+    return loadToolbarIcon('wide.svg');
 }
 
 function getSaveJsonIcon(): string {
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="12" height="12" class="icon">
-  <path d="M 2 15 L 4 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 4 13 L 4 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 4 6 L 6 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 2 15 L 4 17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 4 17 L 4 25" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 4 25 L 6 27" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 27 3 L 29 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 29 6 L 29 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 29 13 L 31 15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 31 15 L 29 17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 29 17 L 29 25" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 29 25 L 27 27" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 18 5 Q 16.5 5.0625 17 6" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 17 5 L 18 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 18 10 Q 20.8125 28.8125 11 22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 19 9 Q 19.5 31.8125 11 22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 18 10 L 19 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>`;
+    return loadToolbarIcon('save-json.svg');
 }
 
 function getHideUnderscoreIcon(): string {
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="12" height="12" class="icon">
-  <path d="M 4 26 L 28 26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 8 8 L 8 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 16 8 L 16 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 24 8 L 24 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="8" cy="8" r="1.5" fill="currentColor"/>
-  <circle cx="16" cy="8" r="1.5" fill="currentColor"/>
-  <circle cx="24" cy="8" r="1.5" fill="currentColor"/>
-</svg>`;
+    return loadToolbarIcon('hide_underscore_rows.svg');
 }
 
 function getEmbeddedCss(): string {
@@ -388,8 +341,9 @@ function getEmbeddedCss(): string {
     --object-indicator: #4ec9b0;
     --array-counter: #dcdcaa;
     --header-bg: #2d2d30;
-    --button-bg: #0e639c;
-    --button-hover: #1177bb;
+    --button-bg: #181818;
+    --button-hover: #2b2b2b;
+    --button-fg: #ffffff;
 }
 
 body.light-mode {
@@ -412,8 +366,9 @@ body.light-mode {
     --object-indicator: #267f99;
     --array-counter: #795e26;
     --header-bg: #f0f0f0;
-    --button-bg: #007acc;
-    --button-hover: #005a9e;
+    --button-bg: #d0d0d0;
+    --button-hover: #bfbfbf;
+    --button-fg: #1e1e1e;
 }
 
 * {
@@ -472,7 +427,7 @@ body {
 .toolbar-btn {
     background: var(--button-bg);
     border: none;
-    color: white;
+    color: var(--button-fg, #ffffff);
     padding: 6px;
     border-radius: 4px;
     cursor: pointer;

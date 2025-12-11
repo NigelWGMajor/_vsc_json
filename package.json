@@ -49,7 +49,7 @@
       {
         "command": "jsonViewer.openViewer",
         "title": "Json Visualizer",
-        "icon": "media/sidebar-icon.svg"
+        "icon": "media/edit-json.svg"
       },
       {
         "command": "jsonViewer.exportHtml",
@@ -74,12 +74,12 @@
       {
         "command": "jsonViewer.injectJsonDumpIntoSelection",
         "title": "Json Visualizer: Inject into Selected Variable",
-        "icon": "$(debug-step-into)"
+        "icon": "media/inject-selected-var.svg"
       },
       {
         "command": "jsonViewer.deserializeJsonDump",
         "title": "Json Visualizer: Inject into Debugger",
-        "icon": "$(debug-step-into)"
+        "icon": "media/inject-debugger.svg"
       },
       {
         "command": "to-json-visual-from-clipboard",
