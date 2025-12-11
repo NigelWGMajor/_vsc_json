@@ -26,7 +26,8 @@
     "onCommand:to-debug-dump-cs",
     "onCommand:to-debug-dump-ts",
     "onCommand:jsonViewer.visualizeAtBreakpoint",
-    "onCommand:jsonViewer.applyJsonDump"
+    "onCommand:jsonViewer.stopVisualizingAtBreakpoint",
+    "onCommand:jsonViewer.deserializeJsonDump"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -61,13 +62,18 @@
       },
       {
         "command": "jsonViewer.visualizeAtBreakpoint",
-        "title": "Json Visualizer: Visualize Selection at Breakpoint",
+        "title": "Json Visualizer: Visualize at Breakpoints",
         "icon": "$(debug-pause)"
       },
       {
-        "command": "jsonViewer.applyJsonDump",
-        "title": "Json Visualizer: Apply JSON Dump to Debugger",
-        "icon": "$(debug-step-over)"
+        "command": "jsonViewer.stopVisualizingAtBreakpoint",
+        "title": "Json Visualizer: Stop Visualizing at Breakpoints",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "jsonViewer.deserializeJsonDump",
+        "title": "Json Visualizer: Inject into Debugger",
+        "icon": "$(debug-step-into)"
       },
       {
         "command": "to-json-visual-from-clipboard",
@@ -100,7 +106,7 @@
           "group": "navigation"
         },
         {
-          "command": "jsonViewer.applyJsonDump",
+          "command": "jsonViewer.deserializeJsonDump",
           "when": "resourceLangId == json",
           "group": "navigation"
         }
@@ -123,7 +129,11 @@
           "when": "resourceLangId == csharp"
         },
         {
-          "command": "jsonViewer.applyJsonDump",
+          "command": "jsonViewer.stopVisualizingAtBreakpoint",
+          "when": "resourceLangId == csharp"
+        },
+        {
+          "command": "jsonViewer.deserializeJsonDump",
           "when": "resourceLangId == json"
         },
         {

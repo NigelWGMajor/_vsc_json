@@ -287,9 +287,13 @@ export function activate(context: vscode.ExtensionContext) {
         return true;
     }
 
-    function toVerbatimStringLiteral(text: string): string {
-        const doubledQuotes = text.replace(/"/g, '""');
-        return `@"${doubledQuotes}"`;
+    function toCSharpStringLiteral(text: string): string {
+        const escaped = text
+            .replace(/\\/g, '\\\\')
+            .replace(/"/g, '\\"')
+            .replace(/\r/g, '\\r')
+            .replace(/\n/g, '\\n');
+        return `"${escaped}"`;
     }
 
     function persistPendingRequestFromContext(
@@ -927,6 +931,13 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(visualizeAtBreakpointCommand);
 
+    const stopVisualizeCommand = vscode.commands.registerCommand('jsonViewer.stopVisualizingAtBreakpoint', () => {
+        autoDumpArmed = false;
+        pendingAutoDumpRequest = undefined;
+        vscode.window.showInformationMessage('JSON Visualizer auto breakpoint dumps are disabled.');
+    });
+    context.subscriptions.push(stopVisualizeCommand);
+
     // Register the custom editor provider for JSON files
     const provider = new JsonViewerEditorProvider(context);
     const registration = vscode.window.registerCustomEditorProvider(
@@ -1260,7 +1271,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(toDebugDump);
 
-    const applyJsonDumpCommand = vscode.commands.registerCommand('jsonViewer.applyJsonDump', async () => {
+    async function applyJsonDumpFromActiveDocument(): Promise<void> {
         const editor = vscode.window.activeTextEditor;
         if (!editor) {
             vscode.window.showErrorMessage('No active editor found');
@@ -1296,12 +1307,13 @@ export function activate(context: vscode.ExtensionContext) {
             return;
         }
 
-        const jsonLiteral = toVerbatimStringLiteral(jsonContent);
+        const jsonLiteral = toCSharpStringLiteral(jsonContent);
         const targetExpression = metadata.expression;
+        const evalExpression = `Newtonsoft.Json.JsonConvert.PopulateObject(${jsonLiteral}, ${targetExpression});`;
 
         try {
             await debugSession.customRequest('evaluate', {
-                expression: `Newtonsoft.Json.JsonConvert.PopulateObject(${jsonLiteral}, ${targetExpression});`,
+                expression: evalExpression,
                 frameId,
                 context: 'repl'
             });
@@ -1311,9 +1323,12 @@ export function activate(context: vscode.ExtensionContext) {
             const message = error?.message || error?.toString() || 'Unknown error';
             vscode.window.showErrorMessage(`Failed to apply JSON changes: ${message}`);
         }
-    });
+    }
 
-    context.subscriptions.push(applyJsonDumpCommand);
+    const deserializeJsonDumpCommand = vscode.commands.registerCommand('jsonViewer.deserializeJsonDump', async () => {
+        await applyJsonDumpFromActiveDocument();
+    });
+    context.subscriptions.push(deserializeJsonDumpCommand);
 
     // Register command to dump JavaScript/TypeScript debug variable to JSON
     const toDebugDumpTs = vscode.commands.registerCommand('to-debug-dump-ts', async () => {
