@@ -973,6 +973,31 @@ let activeValueEditor = null;
 let activeEditContext = null;
 let pendingSyncTimer = null;
 const htmlEntityDecoder = document.createElement('textarea');
+const safeStorage = (() => {
+    const memoryStore = new Map();
+    const memoryAdapter = {
+        getItem: (key) => memoryStore.has(key) ? memoryStore.get(key) : null,
+        setItem: (key, value) => {
+            memoryStore.set(key, value == null ? '' : String(value));
+        }
+    };
+
+    try {
+        if (typeof localStorage !== 'undefined') {
+            const testKey = '__jsonViewerStorageTest__';
+            localStorage.setItem(testKey, '1');
+            localStorage.removeItem(testKey);
+            return {
+                getItem: (key) => localStorage.getItem(key),
+                setItem: (key, value) => localStorage.setItem(key, value)
+            };
+        }
+    } catch (error) {
+        console.warn('localStorage is not available, falling back to in-memory store', error);
+    }
+
+    return memoryAdapter;
+})();
 
 function decodeHtmlEntities(value) {
     if (typeof value !== 'string') {
@@ -1011,10 +1036,10 @@ function toggleTheme() {
 
     if (body.classList.contains('light-mode')) {
         body.classList.remove('light-mode');
-        localStorage.setItem('theme', 'dark');
+        safeStorage.setItem('theme', 'dark');
     } else {
         body.classList.add('light-mode');
-        localStorage.setItem('theme', 'light');
+        safeStorage.setItem('theme', 'light');
     }
 }
 
@@ -1028,13 +1053,13 @@ function toggleTheme() {
     if (!vscodeApi) {
         // We're in standalone mode - set localStorage based on body class only
         if (hasLightModeClass) {
-            localStorage.setItem('theme', 'light');
+            safeStorage.setItem('theme', 'light');
         } else {
-            localStorage.setItem('theme', 'dark');
+            safeStorage.setItem('theme', 'dark');
         }
     } else {
         // We're in VSCode, check localStorage for saved preference
-        const savedTheme = localStorage.getItem('theme');
+        const savedTheme = safeStorage.getItem('theme');
         if (savedTheme === 'light') {
             document.body.classList.add('light-mode');
         }
@@ -1047,21 +1072,21 @@ function toggleHideUnderscore() {
 
     if (body.classList.contains('hide-underscore')) {
         body.classList.remove('hide-underscore');
-        localStorage.setItem('hideUnderscore', 'false');
+        safeStorage.setItem('hideUnderscore', 'false');
     } else {
         body.classList.add('hide-underscore');
-        localStorage.setItem('hideUnderscore', 'true');
+        safeStorage.setItem('hideUnderscore', 'true');
     }
 }
 
 // Initialize hide-underscore state from localStorage (default to hiding)
 (function initHideUnderscore() {
-    const savedHideUnderscore = localStorage.getItem('hideUnderscore');
+    const savedHideUnderscore = safeStorage.getItem('hideUnderscore');
 
     // Default to hiding underscore rows (true)
     if (savedHideUnderscore === null || savedHideUnderscore === 'true') {
         document.body.classList.add('hide-underscore');
-        localStorage.setItem('hideUnderscore', 'true');
+        safeStorage.setItem('hideUnderscore', 'true');
     }
 })();
 
